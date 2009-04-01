@@ -1,3 +1,21 @@
+/* $Id$ */
+
+/** 
+ * @projectDescription An implementation of the <canvas> text function in browsers that don't already support it
+ * @author Fabien Ménager
+ * @version $Revision$
+ * @license MIT License <http://www.opensource.org/licenses/mit-license.php>
+ */
+
+/**
+ * Known issues:
+ * - Doesn't work on Opera 9 : it handles the save and restore functions differently)
+ * - Doesn't work on Safari 3 and Chrome 1 : They use an old version of Webkit where 
+ *   window.CanvasRenderingContext2D isn't available. The functions must be applied to the context instances directly.
+ * - The 'light' font weight is not supported, neither is the 'oblique' font style.
+ */
+
+/** Array.indexOf */
 if (!Array.prototype.indexOf) Array.prototype.indexOf = function(item, i) {
   i || (i = 0);
   var length = this.length;
@@ -7,6 +25,7 @@ if (!Array.prototype.indexOf) Array.prototype.indexOf = function(item, i) {
   return -1;
 };
 
+/** Function.bind */
 if (!Function.prototype.bind) Function.prototype.bind = function(){ 
   var fn = this, args = Array.prototype.slice.call(arguments), object = args.shift(); 
 
@@ -15,100 +34,122 @@ if (!Function.prototype.bind) Function.prototype.bind = function(){
   }; 
 };
 
+/** Initializes a canvas element for Internet Explorer if 
+ * ExCanvas is present and old-webkit based browsers
+ * @param {Element} canvas The canvas to initialize
+ */
 function initCanvas(canvas) {
   if (window.G_vmlCanvasManager && window.attachEvent && !window.opera) {
     canvas = window.G_vmlCanvasManager.initElement(canvas);
   }
-	// WIP for safari 3 and chrome 1.0
-	else if (window.safari3) {
-		var f, 
-		    textFunctions = window.window.Canvas.Text,
-		    canvasContext = canvas.getContext('2d');
+  // WIP for safari 3 and chrome 1.0 
+	/** @TODO: Implement it thanks to the initCanvas function that will have to be called on the canvas elements */
+  else if (window.safari3) {
+    var f, 
+        textFunctions = window.window.Canvas.Text,
+        canvasContext = canvas.getContext('2d');
 
-		for(f in textFunctions) {
+    for(f in textFunctions) {
       canvasContext[f] = ((typeof textFunctions[f] == 'function') ? textFunctions[f].bind(canvasContext) : textFunctions[f]);
     }
-	}
-	return canvas;
+  }
+  return canvas;
 }
 
+/** The implementation of the text functions */
 (function(){
-	window.Canvas = {Text: {}};
-	
+  window.Canvas = {Text: {}};
+  
   var textFunctions = window.Canvas.Text,
-	    ctx = window.CanvasRenderingContext2D,
-			ctxp = ctx.prototype;
+      ctx = window.CanvasRenderingContext2D,
+      ctxp = ctx.prototype;
 
-  // what is the browser's implementation ?
-	var moz = ctxp.mozDrawText && !ctxp.strokeText;
-
-  if (ctxp.strokeText) return;
-	
-	function getCSSWeightEquivalent(weight) {
-		switch(weight) {
-			case 'bolder':
-      case 'bold':
-			case '900':
-			case '800':
-			case '700': return 'bold';
-			case '600':
-			case '500':
-      case '400':
-			case 'normal': return 'normal';
-      default: return 'light';
-		}
+  // Global options
+  ctx.options = {
+    fallbackCharacter: ' ', // The character that will be drawn when not present in the font face file
+    dontUseMoz: false, // Don't use the builtin Firefox 3.0 functions (mozDrawText, mozPathText and mozMeasureText)
+		reimplement: false // Don't use the builtin official functions present in Chrome 2, Safari 4, Opera 10 and Firefox 3.1+
   };
 	
-	function getElementStyle(e) {
-    if (window.getComputedStyle) {
-      return window.getComputedStyle(e, '');
-    } else if (e.currentStyle) {
-      return e.currentStyle;
+  function initialize(){
+    var libFileName = 'canvas.text.js',
+        head = document.getElementsByTagName("head")[0],
+        scripts = head.getElementsByTagName("script"), i, j, src, parts;
+
+    for (i = 0; i < scripts.length; i++) {
+      src = scripts[i].src;
+      if (src.indexOf(libFileName) > 0) {
+        parts = src.split("?");
+        ctx.basePath = parts[0].replace(libFileName, '');
+        if (parts[1]) {
+          var options = parts[1].split('&');
+          for (j = options.length-1; j >= 0; --j) {
+            var pair = options[j].split('=');
+            ctx.options[pair[0]] = pair[1];
+          }
+        }
+      }
+    }
+  }
+	initialize();
+	
+  // What is the browser's implementation ?
+  var moz = !ctx.options.dontUseMoz && ctxp.mozDrawText && !ctxp.strokeText;
+
+  // If the text functions are already here : nothing to do !
+  if (ctxp.strokeText && !ctx.options.reimplement) return;
+  
+  function getCSSWeightEquivalent(weight) {
+    switch(weight) {
+      case 'bolder':
+      case 'bold':
+      case '900':
+      case '800':
+      case '700': return 'bold';
+      case '600':
+      case '500':
+      case '400':
+      default:
+      case 'normal': return 'normal';
+      //default: return 'light';
     }
   };
-	
-	function getXHR() {
-		var methods = [
+  
+  function getElementStyle(e) {
+    if (window.getComputedStyle)
+      return window.getComputedStyle(e, '');
+    else if (e.currentStyle)
+      return e.currentStyle;
+  };
+  
+  function getXHR() {
+    var methods = [
       function() {return new XMLHttpRequest()},
       function() {return new ActiveXObject('Msxml2.XMLHTTP')},
       function() {return new ActiveXObject('Microsoft.XMLHTTP')}
     ];
-		if (!ctx.xhr) {
+    if (!ctx.xhr) {
       for (i = 0; i < methods.length; i++) {
         try {
           ctx.xhr = methods[i](); 
-					break;
+          break;
         } 
         catch (e) {}
       }
     }
-		return ctx.xhr;
-	};
-	
-  ctx.fallbackCharacter = " ";
+    return ctx.xhr;
+  };
+  
   ctx.faces = {};
-	ctx.scaling = 0.962;
+  ctx.scaling = 0.962;
   ctx._styleCache = {};
+
   ctx.getFace = function(family, weight, style) {
-    var i, libFileName = 'canvas.text.js',
-        faceName = (family+'-'+weight+'-'+style).replace(' ', '_');
+    var faceName = (family+'-'+weight+'-'+style).replace(' ', '_');
     
     if (ctx.faces[family] && 
         ctx.faces[family][weight] && 
         ctx.faces[family][weight][style]) return ctx.faces[family][weight][style];
-    
-    if (!ctx.basePath){
-      var head = document.getElementsByTagName("head")[0],
-          scripts = head.getElementsByTagName("script"), i, j, src, parts;
-
-      for (i = 0; i < scripts.length; i++) {
-        src = scripts[i].src;
-        if (src.indexOf(libFileName) > 0) {
-          parts = src.split("?");
-          ctx.basePath = parts[0].replace(libFileName, '');
-        }
-      }
-    }
     
     ctx.xhr = getXHR();
     ctx.xhr.open("get", ctx.basePath+'faces/'+faceName+'.js', false);
@@ -127,6 +168,7 @@ function initCanvas(canvas) {
     ctx.faces[familyName][data.cssFontWeight][data.cssFontStyle] = data;
     return data;
   };
+	// To use the typeface.js face files
   window._typeface_js = {faces: ctx.faces, loadFace: ctx.loadFace};
   
   ctx.getFaceFromStyle = function(style) {
@@ -147,10 +189,12 @@ function initCanvas(canvas) {
     }
     return face;
   };
-	
+  
+	// Default values
   ctxp.font = "10px sans-serif";
   ctxp.textAlign = "start";
   ctxp.textBaseline = "alphabetic";
+	
   ctxp.parseStyle = function(styleText) {
     styleText = styleText.replace(/^\s\s*/, '').replace(/\s\s*$/, ''); // trim
     
@@ -167,7 +211,7 @@ function initCanvas(canvas) {
     
     var possibleValues = {
       weight: ['bold', 'bolder', 'lighter', '100', '200', '300', '400', '500', '600', '700', '800', '900'],
-      style: ['italic', 'oblique']
+      style: ['italic'/*, 'oblique'*/]
     };
     
     parts = styleText.match(/([\w\%]+|"[^"]+"|'[^']+')*/g);
@@ -187,7 +231,7 @@ function initCanvas(canvas) {
         }
       }
     }
-		
+    
     return this.getComputedStyle(ctx._styleCache[styleText] = style);
   };
   
@@ -195,27 +239,25 @@ function initCanvas(canvas) {
     return style.style+' '+style.weight+' '+style.size+'px "'+style.family+'"';
   };
 
-	ctxp.renderText = function(text, style) {
+  ctxp.renderText = function(text, style) {
     var face = ctx.getFaceFromStyle(style),
-		    scale = (style.size / face.resolution) * (3/4);
-		
+        scale = (style.size / face.resolution) * (3/4);
+    
     this.beginPath();
-    this.save();
-		this.scale(scale, -scale);
+    this.scale(scale, -scale);
 
     var i, chars = text.split('');
     for (i = 0; i < chars.length; i++) {
       this.renderGlyph(chars[i], face);
     }
-		
-		this.restore();
-		this.closePath();
-	};
-	
-	ctxp.renderGlyph = function(c, face) {
+    
+    this.closePath();
+  };
+  
+  ctxp.renderGlyph = function(c, face) {
     var i, cpx, cpy, outline, action, glyph = face.glyphs[c];
     
-		if (!glyph) return;
+    if (!glyph) return;
 
     if (glyph.o) {
       outline = glyph._cachedOutline || (glyph._cachedOutline = glyph.o.split(' '));
@@ -241,48 +283,48 @@ function initCanvas(canvas) {
     if (glyph.ha) {
       this.translate(glyph.ha, 0);
     }
-	};
-	
+  };
+  
   ctxp.getTextExtents = function(text, style){
     var width = 0, 
-		    height = 0, horizontalAdvance = 0, 
-				face = ctx.getFaceFromStyle(style),
-				i, glyph;
+        height = 0, horizontalAdvance = 0, 
+        face = ctx.getFaceFromStyle(style),
+        i, glyph;
     
     for (i = 0; i < text.length; i++) {
-      glyph = face.glyphs[text.charAt(i)] || face.glyphs[this.fallbackCharacter];
+      glyph = face.glyphs[text.charAt(i)] || face.glyphs[ctx.options.fallbackCharacter];
       width += Math.max(glyph.ha, glyph.x_max);
       horizontalAdvance += glyph.ha;
     }
-		
+    
     return {
       width: width,
       height: height,
       ha: horizontalAdvance
     };
   };
-	
-	ctxp.getComputedStyle = function(style) {
-		var canvasStyle = getElementStyle(this.canvas), 
-		    computedStyle = style;
-		
-		// Text align
-		if (this.textAlign.match(/^(left|center|right)$/i)) {
-			computedStyle.align = this.textAlign;
-		} 
-		else {
-			computedStyle.align = (
-			  ((this.textAlign === 'end' && canvasStyle.direction == 'ltr') || 
-				 (this.textAlign === 'start' && canvasStyle.direction == 'rtl')) ? 'right' : 'left');
-		}
-		
-		// Compute the size
+  
+  ctxp.getComputedStyle = function(style) {
+    var canvasStyle = getElementStyle(this.canvas), 
+        computedStyle = style;
+    
+    // Text align
+    if (this.textAlign.match(/^(left|center|right)$/i)) {
+      computedStyle.align = this.textAlign;
+    } 
+    else {
+      computedStyle.align = (
+        ((this.textAlign === 'end' && canvasStyle.direction == 'ltr') || 
+         (this.textAlign === 'start' && canvasStyle.direction == 'rtl')) ? 'right' : 'left');
+    }
+    
+    // Compute the size
     var canvasFontSize = parseFloat(canvasStyle.fontSize),
-		    fontSize = parseFloat(style.size);
+        fontSize = parseFloat(style.size);
 
     if (typeof style.size == 'number') 
-		  computedStyle.size = canvasFontSize;
-		else if (style.size.indexOf('em') != -1)
+      computedStyle.size = canvasFontSize;
+    else if (style.size.indexOf('em') != -1)
       computedStyle.size = canvasFontSize * fontSize;
     else if(style.size.indexOf('%') != -1)
       computedStyle.size = (canvasFontSize / 100) * fontSize;
@@ -290,40 +332,40 @@ function initCanvas(canvas) {
       computedStyle.size = canvasFontSize * (4/3) * fontSize;
     else
       computedStyle.size = canvasFontSize;
-		
-		return computedStyle;
-	};
-	
-	ctxp.getTextOffset = function(text, style) {
+    
+    return computedStyle;
+  };
+  
+  ctxp.getTextOffset = function(text, style) {
     var canvasStyle = getElementStyle(this.canvas),
-		    metrics = this.measureText(text), 
+        metrics = this.measureText(text), 
         offset = {x: 0, y: 0},
         face = ctx.getFaceFromStyle(style),
-				scale = (style.size / face.resolution) * (3/4);
+        scale = (style.size / face.resolution) * (3/4);
 
-		switch (this.textAlign) {
-			default:
+    switch (this.textAlign) {
+      default:
       case 'left': break;
-			case 'start':  offset.x = (canvasStyle.direction == 'rtl') ? -metrics.width : 0; break;
+      case 'start':  offset.x = (canvasStyle.direction == 'rtl') ? -metrics.width : 0; break;
       case 'center': offset.x = -metrics.width/2; break;
-			case 'end':    offset.x = (canvasStyle.direction == 'ltr') ? -metrics.width : 0; break;
+      case 'end':    offset.x = (canvasStyle.direction == 'ltr') ? -metrics.width : 0; break;
       case 'right':  offset.x = -metrics.width; break;
     }
-		
-		switch (this.textBaseline) {
-			case 'hanging': 
+    
+    switch (this.textBaseline) {
+      case 'hanging': 
       case 'top': offset.y = face.ascender; break;
       case 'middle': offset.y = (face.ascender + face.descender) / 2;
       default:
-      case 'alphabetic': break;
+      case 'alphabetic':
       case 'ideographic': break;
       case 'bottom': offset.y = face.descender; break;
     }
-		offset.y *= scale;
-		return offset;
-	}
-	
-	ctxp.beginText = function(text, x, y, maxWidth, style){
+    offset.y *= scale;
+    return offset;
+  }
+  
+  ctxp.beginText = function(text, x, y, maxWidth, style){
     var metrics = this.measureText(text), 
         offset = this.getTextOffset(text, style);
     
@@ -331,61 +373,61 @@ function initCanvas(canvas) {
     this.translate(x + offset.x, y + offset.y);
     this.beginPath();
   }
-	
-	ctxp.fillText = function(text, x, y , maxWidth){
-		var style = this.parseStyle(this.font);
-		
-		this.beginText(text, x, y , maxWidth, style);
-		
+  
+  ctxp.fillText = function(text, x, y , maxWidth){
+    var style = this.parseStyle(this.font);
+    
+    this.beginText(text, x, y , maxWidth, style);
+    
     if (moz) {
       this.mozTextStyle = this.buildStyle(style);
       this.mozDrawText(text);
     }
-		else {
-			this.scale(ctx.scaling, ctx.scaling);
-			this.renderText(text, style);
-		}
+    else {
+      this.scale(ctx.scaling, ctx.scaling);
+      this.renderText(text, style);
+    }
 		
-	  this.closePath();
-	  this.fill();
-	  this.restore();
-	};
-	
+    this.closePath();
+    this.fill();
+    this.restore();
+  };
+  
   ctxp.strokeText = function(text, x, y , maxWidth){
     var style = this.parseStyle(this.font);
     
     this.beginText(text, x, y , maxWidth, style);
-		
-		if (moz) {
-			this.mozTextStyle = this.buildStyle(style);
+    
+    if (moz) {
+      this.mozTextStyle = this.buildStyle(style);
       this.mozPathText(text);
     }
-		else {
-			this.scale(ctx.scaling, ctx.scaling);
-			this.renderText(text, style);
-		}
-		
-	  this.closePath();
+    else {
+      this.scale(ctx.scaling, ctx.scaling);
+      this.renderText(text, style);
+    }
+    
+    this.closePath();
     this.stroke();
     this.restore();
-	};
-	
-	ctxp.measureText = function(text){
-		var style = this.parseStyle(this.font), 
-		    dim = {width: 0};
-				
-		if (moz) {
-			this.mozTextStyle = this.buildStyle(style);
-			dim.width = this.mozMeasureText(text);
-		}
-		else {
-			var face = ctx.getFaceFromStyle(style),
+  };
+  
+  ctxp.measureText = function(text){
+    var style = this.parseStyle(this.font), 
+        dim = {width: 0};
+        
+    if (moz) {
+      this.mozTextStyle = this.buildStyle(style);
+      dim.width = this.mozMeasureText(text);
+    }
+    else {
+      var face = ctx.getFaceFromStyle(style),
           scale = (style.size / face.resolution) * (3/4);
-					
-			dim = this.getTextExtents(text, style);
-			dim.width *= scale * ctx.scaling;
-		}
-		
-		return dim;
-	};
+          
+      dim = this.getTextExtents(text, style);
+      dim.width *= scale * ctx.scaling;
+    }
+    
+    return dim;
+  };
 })();
