@@ -55,7 +55,7 @@
 				
 		  	ctx.strokeStyle = "rgba(255,0,0,0.5)";
 		  	ctx.fillStyle = "rgba(0,0,0,1)";
-		  	ctx.lineWidth = 1;
+		  	ctx.lineWidth = 2;
 		  	ctx.lineJoin = 'miter';
 		  	
 		  	ctx.font = "1em 'arial'";
@@ -81,7 +81,7 @@
 		  		ctx.strokeText('Lorem ipsum dolor.', 0, -20);
 		  		ctx.fillText('Aliquam euismod liber', 0, 20);
 		  		ctx.restore();
-		  		setTimeout(draw, 20);
+					if (n++ < 1000) setTimeout(draw, 1);
 		  	}
 		    //draw();
 			}

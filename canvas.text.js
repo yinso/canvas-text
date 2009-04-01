@@ -243,15 +243,17 @@ function initCanvas(canvas) {
     var face = ctx.getFaceFromStyle(style),
         scale = (style.size / face.resolution) * (3/4);
     
+		//this.save();
+		this.scale(scale, -scale);
     this.beginPath();
-    this.scale(scale, -scale);
-
+    
     var i, chars = text.split('');
     for (i = 0; i < chars.length; i++) {
       this.renderGlyph(chars[i], face);
     }
     
     this.closePath();
+		//this.restore();
   };
   
   ctxp.renderGlyph = function(c, face) {

@@ -989,7 +989,7 @@ if (!document.createElement('canvas').getContext) {
   CanvasRenderingContext2D = CanvasRenderingContext2D_;
   CanvasGradient = CanvasGradient_;
   CanvasPattern = CanvasPattern_;
-  DOMException = DOMException_
+  DOMException = DOMException_;
 
 })();
 
