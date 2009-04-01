@@ -68,7 +68,8 @@ function initCanvas(canvas) {
   ctx.options = {
     fallbackCharacter: ' ', // The character that will be drawn when not present in the font face file
     dontUseMoz: false, // Don't use the builtin Firefox 3.0 functions (mozDrawText, mozPathText and mozMeasureText)
-		reimplement: false // Don't use the builtin official functions present in Chrome 2, Safari 4, Opera 10 and Firefox 3.1+
+		reimplement: false, // Don't use the builtin official functions present in Chrome 2, Safari 4, Opera 10 and Firefox 3.1+
+		debug: false // Debug mode, not used yet
   };
 	
   function initialize(){
@@ -79,7 +80,7 @@ function initCanvas(canvas) {
     for (i = 0; i < scripts.length; i++) {
       src = scripts[i].src;
       if (src.indexOf(libFileName) > 0) {
-        parts = src.split("?");
+        parts = src.split('?');
         ctx.basePath = parts[0].replace(libFileName, '');
         if (parts[1]) {
           var options = parts[1].split('&');
@@ -282,9 +283,7 @@ function initCanvas(canvas) {
         }
       }
     }
-    if (glyph.ha) {
-      this.translate(glyph.ha, 0);
-    }
+    if (glyph.ha) this.translate(glyph.ha, 0);
   };
   
   ctxp.getTextExtents = function(text, style){
@@ -351,6 +350,7 @@ function initCanvas(canvas) {
 
     switch (this.textAlign) {
       default:
+      case null:
       case 'left': break;
       case 'start':  offset.x = (canvasStyle.direction == 'rtl') ? -metrics.width : 0; break;
       case 'center': offset.x = -metrics.width/2; break;
@@ -363,6 +363,7 @@ function initCanvas(canvas) {
       case 'top': offset.y = face.ascender; break;
       case 'middle': offset.y = (face.ascender + face.descender) / 2;
       default:
+      case null:
       case 'alphabetic':
       case 'ideographic': break;
       case 'bottom': offset.y = face.descender; break;
@@ -372,16 +373,21 @@ function initCanvas(canvas) {
   }
   
   ctxp.beginText = function(text, x, y, maxWidth, style){
-    var metrics = this.measureText(text), 
-        offset = this.getTextOffset(text, style);
+    text = text || '';
+    var offset = this.getTextOffset(text, style);
+    
+    x = x || 0;
+    y = y || 0;
     
     this.save();
     this.translate(x + offset.x, y + offset.y);
     this.beginPath();
   }
   
-  ctxp.fillText = function(text, x, y , maxWidth){
+  ctxp.fillText = function(text, x, y, maxWidth){
     var style = this.parseStyle(this.font);
+    
+    text = text || '';
     
     this.beginText(text, x, y , maxWidth, style);
     
@@ -399,8 +405,10 @@ function initCanvas(canvas) {
     this.restore();
   };
   
-  ctxp.strokeText = function(text, x, y , maxWidth){
+  ctxp.strokeText = function(text, x, y, maxWidth){
     var style = this.parseStyle(this.font);
+    
+    text = text || '';
     
     this.beginText(text, x, y , maxWidth, style);
     
@@ -421,7 +429,9 @@ function initCanvas(canvas) {
   ctxp.measureText = function(text){
     var style = this.parseStyle(this.font), 
         dim = {width: 0};
-        
+    
+    text = text || '';
+    
     if (moz) {
       this.mozTextStyle = this.buildStyle(style);
       dim.width = this.mozMeasureText(text);
