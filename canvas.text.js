@@ -243,7 +243,7 @@ function initCanvas(canvas) {
     var face = ctx.getFaceFromStyle(style),
         scale = (style.size / face.resolution) * (3/4);
     
-		//this.save();
+		this.save();
 		this.scale(scale, -scale);
     this.beginPath();
     
@@ -253,7 +253,7 @@ function initCanvas(canvas) {
     }
     
     this.closePath();
-		//this.restore();
+		this.restore();
   };
   
   ctxp.renderGlyph = function(c, face) {
@@ -307,8 +307,12 @@ function initCanvas(canvas) {
   };
   
   ctxp.getComputedStyle = function(style) {
-    var canvasStyle = getElementStyle(this.canvas), 
-        computedStyle = style;
+    var p, canvasStyle = getElementStyle(this.canvas), 
+        computedStyle = {};
+    
+    for (p in style) {
+      computedStyle[p] = style[p];
+    }
     
     // Text align
     if (this.textAlign.match(/^(left|center|right)$/i)) {
