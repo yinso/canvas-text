@@ -1,0 +1,90 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1" />
+		<title>Canvas text basic example</title>
+		
+		<!--[if IE]>
+      <script type="text/javascript" src="../excanvas.js"></script>
+    <![endif]-->
+		
+    <script type="text/javascript" src="../canvas.text.js"></script>
+		<style type="text/css">
+			* {
+				margin: 0;
+				padding: 0;
+			}
+			body {
+				background: #fff;
+			}
+			#test-canvas, #test-div {
+				border: 1px solid #000;
+				font-family: arial;
+				font-weight: normal;
+				font-style: normal;
+				font-size: 40px;
+				/*direction: rtl;*/
+				position: absolute;
+				top: 0;
+				left: 0;
+			}
+			#test-div {
+				color: white;
+				background-color: black;
+				background: none;
+			}
+		</style>
+	</head>
+	<body>
+
+    Ideally, you should only see the word "amet" in black.
+		<div style="position: relative; margin: 20px;">
+			<canvas width="500" height="300" id="test-canvas"></canvas>
+		  <div style="width: 500px; height: 300px;" id="test-div">
+			  <div style="position: absolute; top: 0px;">Lorem ipsum dolor sit</div>
+				<div style="position: absolute; top: 30px;">Lorem ipsum dolor sit</div>
+				<div style="position: absolute; top: 60px;">Lorem ipsum dolor sit</div>
+        <div style="position: absolute; top: 90px;">Lorem ipsum dolor sit</div>
+			</div>
+		</div>
+		
+		<script type="text/javascript">
+			window.onload = function(){
+		  	var canvas = initCanvas(document.getElementById("test-canvas")),
+				    ctx = canvas.getContext('2d');
+				
+		  	ctx.strokeStyle = "rgba(255,0,0,0.5)";
+		  	ctx.fillStyle = "rgba(0,0,0,1)";
+		  	ctx.lineWidth = 1;
+		  	ctx.lineJoin = 'miter';
+		  	
+		  	ctx.font = "1em 'arial'";
+				ctx.textAlign = 'left';
+				
+				ctx.textBaseline = 'top';
+		  	ctx.fillText('Lorem ipsum dolor sit amet', 0, 0);
+        ctx.fillText('Lorem ipsum dolor sit amet', 0, 30);
+				
+				ctx.textBaseline = 'middle';
+        ctx.fillText('Lorem ipsum dolor sit amet', 0, 83);
+				
+        ctx.textBaseline = 'bottom';
+        ctx.fillText('Lorem ipsum dolor sit amet', 0, 135);
+
+		  	var n = 0;
+		  	function draw(){
+		  		ctx.save();
+		  		ctx.clearRect(0, 0, 500, 300);
+		  		ctx.translate(250, 150);
+		  		ctx.rotate(n++ * 0.02);
+		  		ctx.translate(-250, 0);
+		  		ctx.strokeText('Lorem ipsum dolor.', 0, -20);
+		  		ctx.fillText('Aliquam euismod liber', 0, 20);
+		  		ctx.restore();
+		  		setTimeout(draw, 20);
+		  	}
+		    //draw();
+			}
+		</script>
+	</body>
+</html>
