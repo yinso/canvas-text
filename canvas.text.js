@@ -9,9 +9,9 @@
 
 /**
  * Known issues:
- * - Doesn't work on Opera 9 : it handles the save and restore functions differently)
+ * - Doesn't work on Opera 9 : this browser handles the save and restore functions differently from other browsers
  * - Doesn't work on Safari 3 and Chrome 1 : They use an old version of Webkit where 
- *   window.CanvasRenderingContext2D isn't available. The functions must be applied to the context instances directly.
+ *   window.CanvasRenderingContext2D isn't available. The functions must be bound to the context instances directly.
  * - The 'light' font weight is not supported, neither is the 'oblique' font style.
  */
 
@@ -20,8 +20,7 @@ if (!Array.prototype.indexOf) Array.prototype.indexOf = function(item, i) {
   i || (i = 0);
   var length = this.length;
   if (i < 0) i = length + i;
-  for (; i < length; i++)
-    if (this[i] === item) return i;
+  for (; i < length; i++) if (this[i] === item) return i;
   return -1;
 };
 
@@ -43,7 +42,7 @@ function initCanvas(canvas) {
     canvas = window.G_vmlCanvasManager.initElement(canvas);
   }
   // WIP for safari 3 and chrome 1.0 
-	/** @TODO: Implement it thanks to the initCanvas function that will have to be called on the canvas elements */
+  /** @TODO: Implement it thanks to the initCanvas function that will have to be called on the canvas elements */
   else if (window.safari3) {
     var f, 
         textFunctions = window.window.Canvas.Text,
@@ -68,10 +67,10 @@ function initCanvas(canvas) {
   ctx.options = {
     fallbackCharacter: ' ', // The character that will be drawn when not present in the font face file
     dontUseMoz: false, // Don't use the builtin Firefox 3.0 functions (mozDrawText, mozPathText and mozMeasureText)
-		reimplement: false, // Don't use the builtin official functions present in Chrome 2, Safari 4, Opera 10 and Firefox 3.1+
-		debug: false // Debug mode, not used yet
+    reimplement: false, // Don't use the builtin official functions present in Chrome 2, Safari 4, Opera 10 and Firefox 3.1+
+    debug: false // Debug mode, not used yet
   };
-	
+  
   function initialize(){
     var libFileName = 'canvas.text.js',
         head = document.getElementsByTagName("head")[0],
@@ -92,8 +91,8 @@ function initCanvas(canvas) {
       }
     }
   }
-	initialize();
-	
+  initialize();
+  
   // What is the browser's implementation ?
   var moz = !ctx.options.dontUseMoz && ctxp.mozDrawText && !ctxp.strokeText;
 
@@ -169,11 +168,12 @@ function initCanvas(canvas) {
     ctx.faces[familyName][data.cssFontWeight][data.cssFontStyle] = data;
     return data;
   };
-	// To use the typeface.js face files
+  // To use the typeface.js face files
   window._typeface_js = {faces: ctx.faces, loadFace: ctx.loadFace};
   
   ctx.getFaceFromStyle = function(style) {
-    var face, scale, weight = getCSSWeightEquivalent(style.weight),
+    var face, 
+        weight = getCSSWeightEquivalent(style.weight),
         familyName = style.family.toLowerCase();
         
     if (!ctx.faces[familyName] ||
@@ -191,17 +191,17 @@ function initCanvas(canvas) {
     return face;
   };
   
-	// Default values
+  // Default values
   ctxp.font = "10px sans-serif";
   ctxp.textAlign = "start";
   ctxp.textBaseline = "alphabetic";
-	
+  
   ctxp.parseStyle = function(styleText) {
     styleText = styleText.replace(/^\s\s*/, '').replace(/\s\s*$/, ''); // trim
     
     if (ctx._styleCache[styleText]) return this.getComputedStyle(ctx._styleCache[styleText]);
     
-    var parts, lex = [], i, 
+    var parts, lex = [], i, part,
     // Default style
     style = {
       family: 'sans-serif',
@@ -216,18 +216,20 @@ function initCanvas(canvas) {
     };
     
     parts = styleText.match(/([\w\%]+|"[^"]+"|'[^']+')*/g);
-    for(i = 0; i < parts.length; i++) {
-      parts[i] = parts[i].replace(/^["|']/, '').replace(/["|']*$/, '');
-      if (parts[i]) lex.push(parts[i]); 
+    length = parts.length;
+    for(i = 0; i < length; i++) {
+      part = parts[i].replace(/^["']/, '').replace(/["']*$/, '');
+      if (part) lex.push(part); 
     }
     
     style.family = lex.pop() || style.family;
     style.size = lex.pop() || style.size;
     
     for (var p in possibleValues) {
-      for (i = 0; i < possibleValues[p].length; i++) {
-        if (lex.indexOf(possibleValues[p][i]) != -1) {
-          style[p] = possibleValues[p][i];
+      var v = possibleValues[p];
+      for (i = 0; i < v.length; i++) {
+        if (lex.indexOf(v[i]) != -1) {
+          style[p] = v[i];
           break;
         }
       }
@@ -244,28 +246,28 @@ function initCanvas(canvas) {
     var face = ctx.getFaceFromStyle(style),
         scale = (style.size / face.resolution) * (3/4);
     
-		this.save();
-		this.scale(scale, -scale);
+    this.save();
+    this.scale(scale, -scale);
     this.beginPath();
     
-    var i, chars = text.split('');
-    for (i = 0; i < chars.length; i++) {
+    var i, chars = text.split(''), length = chars.length;
+    for (i = 0; i < length; i++) {
       this.renderGlyph(chars[i], face);
     }
     
     this.closePath();
-		this.restore();
+    this.restore();
   };
   
   ctxp.renderGlyph = function(c, face) {
-    var i, cpx, cpy, outline, action, glyph = face.glyphs[c];
+    var i, cpx, cpy, outline, action, glyph = face.glyphs[c], length;
     
     if (!glyph) return;
 
     if (glyph.o) {
       outline = glyph._cachedOutline || (glyph._cachedOutline = glyph.o.split(' '));
-
-      for (i = 0; i < outline.length; ) {
+      length = outline.length;
+      for (i = 0; i < length; ) {
         action = outline[i++];
 
         switch(action) {
@@ -292,7 +294,7 @@ function initCanvas(canvas) {
         face = ctx.getFaceFromStyle(style),
         i, glyph;
     
-    for (i = 0; i < text.length; i++) {
+    for (i = text.length - 1; i > 0; --i) {
       glyph = face.glyphs[text.charAt(i)] || face.glyphs[ctx.options.fallbackCharacter];
       width += Math.max(glyph.ha, glyph.x_max);
       horizontalAdvance += glyph.ha;
@@ -352,20 +354,20 @@ function initCanvas(canvas) {
       default:
       case null:
       case 'left': break;
-      case 'start':  offset.x = (canvasStyle.direction == 'rtl') ? -metrics.width : 0; break;
       case 'center': offset.x = -metrics.width/2; break;
-      case 'end':    offset.x = (canvasStyle.direction == 'ltr') ? -metrics.width : 0; break;
       case 'right':  offset.x = -metrics.width; break;
+      case 'start':  offset.x = (canvasStyle.direction == 'rtl') ? -metrics.width : 0; break;
+      case 'end':    offset.x = (canvasStyle.direction == 'ltr') ? -metrics.width : 0; break;
     }
     
     switch (this.textBaseline) {
-      case 'hanging': 
-      case 'top': offset.y = face.ascender; break;
-      case 'middle': offset.y = (face.ascender + face.descender) / 2;
       default:
       case null:
       case 'alphabetic':
       case 'ideographic': break;
+      case 'hanging': 
+      case 'top': offset.y = face.ascender; break;
+      case 'middle': offset.y = (face.ascender + face.descender) / 2;
       case 'bottom': offset.y = face.descender; break;
     }
     offset.y *= scale;
@@ -375,9 +377,6 @@ function initCanvas(canvas) {
   ctxp.beginText = function(text, x, y, maxWidth, style){
     text = text || '';
     var offset = this.getTextOffset(text, style);
-    
-    x = x || 0;
-    y = y || 0;
     
     this.save();
     this.translate(x + offset.x, y + offset.y);
@@ -399,7 +398,7 @@ function initCanvas(canvas) {
       this.scale(ctx.scaling, ctx.scaling);
       this.renderText(text, style);
     }
-		
+    
     this.closePath();
     this.fill();
     this.restore();
