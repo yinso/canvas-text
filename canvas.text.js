@@ -88,9 +88,10 @@ function initCanvas(canvas) {
             ctx.options[pair[0]] = pair[1];
           }
         }
+        break;
       }
     }
-  }
+  };
   initialize();
   
   // What is the browser's implementation ?
@@ -145,12 +146,12 @@ function initCanvas(canvas) {
   ctx._styleCache = {};
 
   ctx.getFace = function(family, weight, style) {
-    var faceName = (family+'-'+weight+'-'+style).replace(' ', '_');
-    
     if (ctx.faces[family] && 
         ctx.faces[family][weight] && 
         ctx.faces[family][weight][style]) return ctx.faces[family][weight][style];
-    
+        
+    var faceName = (family+'-'+weight+'-'+style).replace(' ', '_');
+
     ctx.xhr = getXHR();
     ctx.xhr.open("get", ctx.basePath+'faces/'+faceName+'.js', false);
     ctx.xhr.send(null);
@@ -162,10 +163,10 @@ function initCanvas(canvas) {
   };
   
   ctx.loadFace = function(data) {
-    var familyName = data.familyName.toLowerCase();
-    ctx.faces[familyName] = ctx.faces[familyName] || {};
-    ctx.faces[familyName][data.cssFontWeight] = ctx.faces[familyName][data.cssFontWeight] || {};
-    ctx.faces[familyName][data.cssFontWeight][data.cssFontStyle] = data;
+    var family = data.familyName.toLowerCase();
+    ctx.faces[family] = ctx.faces[family] || {};
+    ctx.faces[family][data.cssFontWeight] = ctx.faces[family][data.cssFontWeight] || {};
+    ctx.faces[family][data.cssFontWeight][data.cssFontStyle] = data;
     return data;
   };
   // To use the typeface.js face files
@@ -174,15 +175,15 @@ function initCanvas(canvas) {
   ctx.getFaceFromStyle = function(style) {
     var face, 
         weight = getCSSWeightEquivalent(style.weight),
-        familyName = style.family.toLowerCase();
+        family = style.family.toLowerCase();
         
-    if (!ctx.faces[familyName] ||
-        !ctx.faces[familyName][weight] ||
-        !ctx.faces[familyName][weight][style.style]) {
-      face = ctx.getFace(familyName, weight, style.style);
+    if (!ctx.faces[family] ||
+        !ctx.faces[family][weight] ||
+        !ctx.faces[family][weight][style.style]) {
+      face = ctx.getFace(family, weight, style.style);
     }
     else {
-      face = ctx.faces[familyName][weight][style.style];
+      face = ctx.faces[family][weight][style.style];
     }
     if (!face) {
       throw 'Unable to load the font ['+style.family+' '+style.weight+' '+style.style+']';
@@ -360,18 +361,18 @@ function initCanvas(canvas) {
     }
     
     switch (this.textBaseline) {
+      case 'hanging': 
+      case 'top': offset.y = face.ascender; break;
+      case 'middle': offset.y = (face.ascender + face.descender) / 2;
       default:
       case null:
       case 'alphabetic':
       case 'ideographic': break;
-      case 'hanging': 
-      case 'top': offset.y = face.ascender; break;
-      case 'middle': offset.y = (face.ascender + face.descender) / 2;
       case 'bottom': offset.y = face.descender; break;
     }
     offset.y *= scale;
     return offset;
-  }
+  };
   
   ctxp.beginText = function(text, x, y, maxWidth, style){
     text = text || '';
@@ -380,7 +381,7 @@ function initCanvas(canvas) {
     this.save();
     this.translate(x + offset.x, y + offset.y);
     this.beginPath();
-  }
+  };
   
   ctxp.fillText = function(text, x, y, maxWidth){
     var style = this.parseStyle(this.font);

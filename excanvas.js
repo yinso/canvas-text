@@ -56,7 +56,7 @@ if (!document.createElement('canvas').getContext) {
   function getContext() {
     return this.context_ ||
         (this.context_ = new CanvasRenderingContext2D_(this));
-  }
+  };
 
   var slice = Array.prototype.slice;
 
@@ -81,7 +81,7 @@ if (!document.createElement('canvas').getContext) {
     return function() {
       return f.apply(obj, a.concat(slice.call(arguments)));
     };
-  }
+  };
 
   var G_vmlCanvasManager_ = {
     init: function(opt_doc) {
@@ -135,7 +135,6 @@ if (!document.createElement('canvas').getContext) {
      */
     initElement: function(el) {
       if (!el.getContext) {
-
         el.getContext = getContext;
 
         // Remove fallback content. There is no way to hide text nodes so we
@@ -181,7 +180,7 @@ if (!document.createElement('canvas').getContext) {
         el.getContext().clearRect();
         break;
     }
-  }
+  };
 
   function onResize(e) {
     var el = e.srcElement;
@@ -189,7 +188,7 @@ if (!document.createElement('canvas').getContext) {
       el.firstChild.style.width =  el.clientWidth + 'px';
       el.firstChild.style.height = el.clientHeight + 'px';
     }
-  }
+  };
 
   G_vmlCanvasManager_.init();
 
@@ -199,7 +198,7 @@ if (!document.createElement('canvas').getContext) {
     for (var j = 0; j < 16; j++) {
       dec2hex[i * 16 + j] = i.toString(16) + j.toString(16);
     }
-  }
+  };
 
   function createMatrixIdentity() {
     return [
@@ -207,7 +206,7 @@ if (!document.createElement('canvas').getContext) {
       [0, 1, 0],
       [0, 0, 1]
     ];
-  }
+  };
 
   function matrixMultiply(m1, m2) {
     var result = createMatrixIdentity();
@@ -224,7 +223,7 @@ if (!document.createElement('canvas').getContext) {
       }
     }
     return result;
-  }
+  };
 
   function copyState(o1, o2) {
     o2.fillStyle     = o1.fillStyle;
@@ -241,7 +240,7 @@ if (!document.createElement('canvas').getContext) {
     o2.arcScaleX_    = o1.arcScaleX_;
     o2.arcScaleY_    = o1.arcScaleY_;
     o2.lineScale_    = o1.lineScale_;
-  }
+  };
 
   function processStyle(styleString) {
     var str, alpha = 1;
@@ -265,7 +264,7 @@ if (!document.createElement('canvas').getContext) {
     }
 
     return {color: str, alpha: alpha};
-  }
+  };
 
   function processLineCap(lineCap) {
     switch (lineCap) {
@@ -277,7 +276,7 @@ if (!document.createElement('canvas').getContext) {
       default:
         return 'square';
     }
-  }
+  };
 
   /**
    * This class implements CanvasRenderingContext2D interface as described by
@@ -314,7 +313,7 @@ if (!document.createElement('canvas').getContext) {
     this.arcScaleX_ = 1;
     this.arcScaleY_ = 1;
     this.lineScale_ = 1;
-  }
+  };
 
   var contextPrototype = CanvasRenderingContext2D_.prototype;
   contextPrototype.clearRect = function() {
@@ -364,7 +363,7 @@ if (!document.createElement('canvas').getContext) {
     });
     self.currentX_ = p.x;
     self.currentY_ = p.y;
-  }
+  };
 
   contextPrototype.quadraticCurveTo = function(aCPx, aCPy, aX, aY) {
     // the following is lifted almost directly from
@@ -782,7 +781,7 @@ if (!document.createElement('canvas').getContext) {
 
   contextPrototype.fill = function() {
     this.stroke(true);
-  }
+  };
 
   contextPrototype.closePath = function() {
     this.currentPath_.push({type: 'close'});
@@ -796,7 +795,7 @@ if (!document.createElement('canvas').getContext) {
     return {
       x: Z * (aX * m[0][0] + aY * m[1][0] + m[2][0]) - Z2,
       y: Z * (aX * m[0][1] + aY * m[1][1] + m[2][1]) - Z2
-    }
+    };
   };
 
   contextPrototype.save = function() {
@@ -821,7 +820,7 @@ if (!document.createElement('canvas').getContext) {
       }
     }
     return true;
-  }
+  };
 
   function setM(ctx, m, updateLineScale) {
     if (!matrixIsFinite(m)) {
@@ -837,7 +836,7 @@ if (!document.createElement('canvas').getContext) {
       var det = m[0][0] * m[1][1] - m[0][1] * m[1][0];
       ctx.lineScale_ = sqrt(abs(det));
     }
-  }
+  };
 
   contextPrototype.translate = function(aX, aY) {
     var m1 = [
@@ -917,7 +916,7 @@ if (!document.createElement('canvas').getContext) {
     this.y1_ = 0;
     this.r1_ = 0;
     this.colors_ = [];
-  }
+  };
 
   CanvasGradient_.prototype.addColorStop = function(aOffset, aColor) {
     aColor = processStyle(aColor);
@@ -946,11 +945,11 @@ if (!document.createElement('canvas').getContext) {
     this.src_ = image.src;
     this.width_ = image.width;
     this.height_ = image.height;
-  }
+  };
 
   function throwException(s) {
     throw new DOMException_(s);
-  }
+  };
 
   function assertImageIsValid(img) {
     if (!img || img.nodeType != 1 || img.tagName != 'IMG') {
@@ -959,7 +958,7 @@ if (!document.createElement('canvas').getContext) {
     if (img.readyState != 'complete') {
       throwException('INVALID_STATE_ERR');
     }
-  }
+  };
 
   function DOMException_(s) {
     this.code = this[s];
@@ -990,7 +989,6 @@ if (!document.createElement('canvas').getContext) {
   CanvasGradient = CanvasGradient_;
   CanvasPattern = CanvasPattern_;
   DOMException = DOMException_;
-
 })();
 
 } // if
