@@ -216,8 +216,7 @@ function initCanvas(canvas) {
     };
     
     parts = styleText.match(/([\w\%]+|"[^"]+"|'[^']+')*/g);
-    length = parts.length;
-    for(i = 0; i < length; i++) {
+    for(i = 0; i < parts.length; i++) {
       part = parts[i].replace(/^["']/, '').replace(/["']*$/, '');
       if (part) lex.push(part); 
     }
