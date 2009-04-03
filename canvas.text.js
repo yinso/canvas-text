@@ -33,6 +33,33 @@ if (!Function.prototype.bind) Function.prototype.bind = function(){
   }; 
 };
 
+var Canvas = Canvas || {};
+Canvas.Text = {
+  // http://mondaybynoon.com/2007/04/02/linux-font-equivalents-to-popular-web-typefaces/
+  equivalentFaces: {
+    'Arial': ['Utkal', 'Nimbus Sans L', 'FreeSans', 'Malayalam', 'Phetsarath OT'],
+    'Charcoal': ['Rehka', 'Aakar', 'FreeSerif', 'Gentium'],
+    'Comic Sans MS': ['TSCu_Comic'],
+    'Courier New': ['FreeMono', 'Nimbus Mono L'],
+    'Georgia': ['Nimbus Roman No9 L', 'Century Schoolbook L', 'Norasi', 'Rekha'],
+    'Helvetica': ['FreeSans', 'Gargi_1.7', 'Jamrul', 'Malayalam', 'Mukti Narrow', 'Nimbus Sans L', 'Phetsarath OT'],
+    'Lucida Grande': ['Gargi_1.7', 'Garuda', 'Jamrul', 'Loma', 'Malayalam', 'Mukti Narrow'],
+    'Tahoma': ['Kalimati'],
+    'Times New Roman': ['FreeSerif'],
+    'Verdana': ['Kalimati']
+  },
+
+  // http://www.w3.org/TR/CSS21/fonts.html#generic-font-families
+  genericFaces: {
+    'serif': ['Times New Roman', 'Bodoni', 'Garamond', 'Minion Web', 'ITC Stone Serif', 'Georgia', 'Bitstream Cyberbit'],
+    'sans-serif': ['Trebuchet', 'Verdana', 'Arial', 'Tahoma', 'Helvetica', 'ITC Avant Garde Gothic', 'Univers', 'Futura', 
+                   'Gill Sans', 'Akzidenz Grotesk', 'Attika', 'Typiko New Era', 'ITC Stone Sans', 'Monotype Gill Sans 571'],
+    'monospace': ['Courier', 'Courier New', 'Prestige', 'Everson Mono'],
+    'cursive': ['Caflisch Script', 'Adobe Poetica', 'Sanvito', 'Ex Ponto', 'Snell Roundhand', 'Zapf-Chancery'],
+    'fantasy': ['Alpha Geometrique', 'Critter', 'Cottonwood', 'FB Reactor', 'Studz']
+  }
+};
+
 /** Initializes a canvas element for Internet Explorer if 
  * ExCanvas is present and old-webkit based browsers
  * @param {Element} canvas The canvas to initialize
@@ -45,7 +72,7 @@ function initCanvas(canvas) {
   /** @TODO: Implement it thanks to the initCanvas function that will have to be called on the canvas elements */
   else if (window.safari3) {
     var f, 
-        textFunctions = window.window.Canvas.Text,
+        textFunctions = window.Canvas.Text,
         canvasContext = canvas.getContext('2d');
 
     for(f in textFunctions) {
@@ -60,6 +87,7 @@ function initCanvas(canvas) {
   window.Canvas = {Text: {}};
   
   var textFunctions = window.Canvas.Text,
+      isOpera9 = window.opera && !navigator.userAgent.match(/Opera\/10/),
       ctx = window.CanvasRenderingContext2D,
       ctxp = ctx.prototype;
 
@@ -244,49 +272,82 @@ function initCanvas(canvas) {
 
   ctxp.renderText = function(text, style) {
     var face = ctx.getFaceFromStyle(style),
-        scale = (style.size / face.resolution) * (3/4);
+        scale = (style.size / face.resolution) * (3/4),
+        offset = 0;
     
     this.save();
-    this.scale(scale, -scale);
+    if (!isOpera9) this.scale(scale, -scale);
     this.beginPath();
     
     var i, chars = text.split(''), length = chars.length;
     for (i = 0; i < length; i++) {
-      this.renderGlyph(chars[i], face);
+      offset += this.renderGlyph(chars[i], face, scale, offset);
     }
     
     this.closePath();
     this.restore();
   };
+
+  if (isOpera9) {
+    ctxp.renderGlyph = function(c, face, scale, offset) {
+      var i, cpx, cpy, outline, action, glyph = face.glyphs[c], length;
+      
+      if (!glyph) return;
   
-  ctxp.renderGlyph = function(c, face) {
-    var i, cpx, cpy, outline, action, glyph = face.glyphs[c], length;
-    
-    if (!glyph) return;
-
-    if (glyph.o) {
-      outline = glyph._cachedOutline || (glyph._cachedOutline = glyph.o.split(' '));
-      length = outline.length;
-      for (i = 0; i < length; ) {
-        action = outline[i++];
-
-        switch(action) {
-          case 'm':
-            this.moveTo(outline[i++], outline[i++]);
-            break;
-          case 'l':
-            this.lineTo(outline[i++], outline[i++]);
-            break;
-          case 'q':
-            cpx = outline[i++];
-            cpy = outline[i++];
-            this.quadraticCurveTo(outline[i++], outline[i++], cpx, cpy);
-            break;
+      if (glyph.o) {
+        outline = glyph._cachedOutline || (glyph._cachedOutline = glyph.o.split(' '));
+        length = outline.length;
+        for (i = 0; i < length; ) {
+          action = outline[i++];
+  
+          switch(action) {
+            case 'm':
+              this.moveTo(outline[i++]*scale+offset, outline[i++]*-scale);
+              break;
+            case 'l':
+              this.lineTo(outline[i++]*scale+offset, outline[i++]*-scale);
+              break;
+            case 'q':
+              cpx = outline[i++]*scale+offset;
+              cpy = outline[i++]*-scale;
+              this.quadraticCurveTo(outline[i++]*scale+offset, outline[i++]*-scale, cpx, cpy);
+              break;
+          }
         }
       }
-    }
-    if (glyph.ha) this.translate(glyph.ha, 0);
-  };
+      return glyph.ha*scale;
+    };
+  }
+  else {
+    ctxp.renderGlyph = function(c, face) {
+      var i, cpx, cpy, outline, action, glyph = face.glyphs[c], length;
+      
+      if (!glyph) return;
+  
+      if (glyph.o) {
+        outline = glyph._cachedOutline || (glyph._cachedOutline = glyph.o.split(' '));
+        length = outline.length;
+        for (i = 0; i < length; ) {
+          action = outline[i++];
+  
+          switch(action) {
+            case 'm':
+              this.moveTo(outline[i++], outline[i++]);
+              break;
+            case 'l':
+              this.lineTo(outline[i++], outline[i++]);
+              break;
+            case 'q':
+              cpx = outline[i++];
+              cpy = outline[i++];
+              this.quadraticCurveTo(outline[i++], outline[i++], cpx, cpy);
+              break;
+          }
+        }
+      }
+      if (glyph.ha) this.translate(glyph.ha, 0);
+    };
+  }
   
   ctxp.getTextExtents = function(text, style){
     var width = 0, 
