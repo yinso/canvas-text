@@ -249,8 +249,6 @@ function initCanvas(canvas) {
       if (part) lex.push(part); 
     }
     
-    console.debug(lex);
-    
     style.family = lex.pop() || style.family;
     style.size = lex.pop() || style.size;
     
