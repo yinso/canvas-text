@@ -9,7 +9,6 @@
 
 /**
  * Known issues:
- * - Doesn't work on Opera 9 : this browser handles the save and restore functions differently from other browsers
  * - Doesn't work on Safari 3 and Chrome 1 : They use an old version of Webkit where 
  *   window.CanvasRenderingContext2D isn't available. The functions must be bound to the context instances directly.
  * - The 'light' font weight is not supported, neither is the 'oblique' font style.
@@ -87,7 +86,7 @@ function initCanvas(canvas) {
   window.Canvas = {Text: {}};
   
   var textFunctions = window.Canvas.Text,
-      isOpera9 = window.opera && !navigator.userAgent.match(/Opera\/10/),
+      isOpera9 = window.opera && navigator.userAgent.match(/Opera\/9/),
       ctx = window.CanvasRenderingContext2D,
       ctxp = ctx.prototype;
 
@@ -95,7 +94,7 @@ function initCanvas(canvas) {
   ctx.options = {
     fallbackCharacter: ' ', // The character that will be drawn when not present in the font face file
     dontUseMoz: false, // Don't use the builtin Firefox 3.0 functions (mozDrawText, mozPathText and mozMeasureText)
-    reimplement: false, // Don't use the builtin official functions present in Chrome 2, Safari 4, Opera 10 and Firefox 3.1+
+    reimplement: false, // Don't use the builtin official functions present in Chrome 2, Safari 4, and Firefox 3.1+
     debug: false // Debug mode, not used yet
   };
   
@@ -178,7 +177,7 @@ function initCanvas(canvas) {
         ctx.faces[family][weight] && 
         ctx.faces[family][weight][style]) return ctx.faces[family][weight][style];
         
-    var faceName = (family+'-'+weight+'-'+style).replace(' ', '_');
+    var faceName = (family.replace('-', '')+'-'+weight+'-'+style).replace(' ', '_');
 
     ctx.xhr = getXHR();
     ctx.xhr.open("get", ctx.basePath+'faces/'+faceName+'.js', false);
@@ -244,11 +243,13 @@ function initCanvas(canvas) {
       style: ['italic'/*, 'oblique'*/]
     };
     
-    parts = styleText.match(/([\w\%]+|"[^"]+"|'[^']+')*/g);
+    parts = styleText.match(/([\w\%-_]+|"[^"]+"|'[^']+')*/g);
     for(i = 0; i < parts.length; i++) {
       part = parts[i].replace(/^["']/, '').replace(/["']*$/, '');
       if (part) lex.push(part); 
     }
+    
+    console.debug(lex);
     
     style.family = lex.pop() || style.family;
     style.size = lex.pop() || style.size;
