@@ -57,17 +57,6 @@ function initCanvas(canvas) {
   if (window.G_vmlCanvasManager && window.attachEvent && !window.opera) {
     canvas = window.G_vmlCanvasManager.initElement(canvas);
   }
-  // WIP for safari 3 and chrome 1.0
-  /*else if (window.safari3) {
-    var f, 
-        proto = window.Canvas.Text.prototype,
-        canvasContext = canvas.getContext('2d');
-
-    for(f in proto) {
-      canvasContext[f] = ((typeof proto[f] == 'function') ? proto[f].bind(canvasContext) : proto[f]);
-      console.log(canvasContext[f]);
-    }
-  }*/
   return canvas;
 }
 
