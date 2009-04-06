@@ -1,7 +1,7 @@
 /* $Id$ */
 
 /** 
- * @projectDescription An implementation of the <canvas> text function in browsers that don't already support it
+ * @projectDescription An implementation of the <canvas> text functions in browsers that don't already have it
  * @author Fabien Ménager
  * @version $Revision$
  * @license MIT License <http://www.opensource.org/licenses/mit-license.php>
@@ -9,9 +9,8 @@
 
 /**
  * Known issues:
- * - Doesn't work on Safari 3 and Chrome 1 : They use an old version of Webkit where 
- *   window.CanvasRenderingContext2D isn't available. The functions must be bound to the context instances directly.
  * - The 'light' font weight is not supported, neither is the 'oblique' font style.
+ * - Optimize the different hacks (for Safari3 and Opera9)
  */
 
 /** Array.indexOf */
@@ -23,17 +22,8 @@ if (!Array.prototype.indexOf) Array.prototype.indexOf = function(item, i) {
   return -1;
 };
 
-/** Function.bind */
-if (!Function.prototype.bind) Function.prototype.bind = function(){ 
-  var fn = this, args = Array.prototype.slice.call(arguments), object = args.shift(); 
-
-  return function() {
-    return fn.apply(object, args.concat(Array.prototype.slice.call(arguments))); 
-  }; 
-};
-
-var Canvas = Canvas || {};
-Canvas.Text = {
+window.Canvas = window.Canvas || {};
+window.Canvas.Text = {
   // http://mondaybynoon.com/2007/04/02/linux-font-equivalents-to-popular-web-typefaces/
   equivalentFaces: {
     'Arial': ['Utkal', 'Nimbus Sans L', 'FreeSans', 'Malayalam', 'Phetsarath OT'],
@@ -67,31 +57,27 @@ function initCanvas(canvas) {
   if (window.G_vmlCanvasManager && window.attachEvent && !window.opera) {
     canvas = window.G_vmlCanvasManager.initElement(canvas);
   }
-  // WIP for safari 3 and chrome 1.0 
-  /** @TODO: Implement it thanks to the initCanvas function that will have to be called on the canvas elements */
-  else if (window.safari3) {
+  // WIP for safari 3 and chrome 1.0
+  /*else if (window.safari3) {
     var f, 
-        textFunctions = window.Canvas.Text,
+        proto = window.Canvas.Text.prototype,
         canvasContext = canvas.getContext('2d');
 
-    for(f in textFunctions) {
-      canvasContext[f] = ((typeof textFunctions[f] == 'function') ? textFunctions[f].bind(canvasContext) : textFunctions[f]);
+    for(f in proto) {
+      canvasContext[f] = ((typeof proto[f] == 'function') ? proto[f].bind(canvasContext) : proto[f]);
+      console.log(canvasContext[f]);
     }
-  }
+  }*/
   return canvas;
 }
 
 /** The implementation of the text functions */
 (function(){
-  window.Canvas = {Text: {}};
-  
-  var textFunctions = window.Canvas.Text,
-      isOpera9 = window.opera && navigator.userAgent.match(/Opera\/9/),
-      ctx = window.CanvasRenderingContext2D,
-      ctxp = ctx.prototype;
+  var isOpera9 = (window.opera && navigator.userAgent.match(/Opera\/9/)),
+      proto = window.CanvasRenderingContext2D ? window.CanvasRenderingContext2D.prototype : document.createElement('canvas').getContext('2d').__proto__;
 
   // Global options
-  ctx.options = {
+  window.Canvas.Text.options = {
     fallbackCharacter: ' ', // The character that will be drawn when not present in the font face file
     dontUseMoz: false, // Don't use the builtin Firefox 3.0 functions (mozDrawText, mozPathText and mozMeasureText)
     reimplement: false, // Don't use the builtin official functions present in Chrome 2, Safari 4, and Firefox 3.1+
@@ -107,12 +93,12 @@ function initCanvas(canvas) {
       src = scripts[i].src;
       if (src.indexOf(libFileName) > 0) {
         parts = src.split('?');
-        ctx.basePath = parts[0].replace(libFileName, '');
+        window.Canvas.Text.basePath = parts[0].replace(libFileName, '');
         if (parts[1]) {
           var options = parts[1].split('&');
           for (j = options.length-1; j >= 0; --j) {
             var pair = options[j].split('=');
-            ctx.options[pair[0]] = pair[1];
+            window.Canvas.Text.options[pair[0]] = pair[1];
           }
         }
         break;
@@ -122,10 +108,10 @@ function initCanvas(canvas) {
   initialize();
   
   // What is the browser's implementation ?
-  var moz = !ctx.options.dontUseMoz && ctxp.mozDrawText && !ctxp.strokeText;
+  var moz = !window.Canvas.Text.options.dontUseMoz && proto.mozDrawText && !proto.strokeText;
 
   // If the text functions are already here : nothing to do !
-  if (ctxp.strokeText && !ctx.options.reimplement) return;
+  if (proto.strokeText && !window.Canvas.Text.options.reimplement) return;
   
   function getCSSWeightEquivalent(weight) {
     switch(weight) {
@@ -156,61 +142,61 @@ function initCanvas(canvas) {
       function() {return new ActiveXObject('Msxml2.XMLHTTP')},
       function() {return new ActiveXObject('Microsoft.XMLHTTP')}
     ];
-    if (!ctx.xhr) {
+    if (!window.Canvas.Text.xhr) {
       for (i = 0; i < methods.length; i++) {
         try {
-          ctx.xhr = methods[i](); 
+          window.Canvas.Text.xhr = methods[i](); 
           break;
         } 
         catch (e) {}
       }
     }
-    return ctx.xhr;
+    return window.Canvas.Text.xhr;
   };
   
-  ctx.faces = {};
-  ctx.scaling = 0.962;
-  ctx._styleCache = {};
+  window.Canvas.Text.faces = {};
+  window.Canvas.Text.scaling = 0.962;
+  window.Canvas.Text._styleCache = {};
 
-  ctx.getFace = function(family, weight, style) {
-    if (ctx.faces[family] && 
-        ctx.faces[family][weight] && 
-        ctx.faces[family][weight][style]) return ctx.faces[family][weight][style];
+  window.Canvas.Text.getFace = function(family, weight, style) {
+    if (window.Canvas.Text.faces[family] && 
+        window.Canvas.Text.faces[family][weight] && 
+        window.Canvas.Text.faces[family][weight][style]) return window.Canvas.Text.faces[family][weight][style];
         
     var faceName = (family.replace('-', '')+'-'+weight+'-'+style).replace(' ', '_');
 
-    ctx.xhr = getXHR();
-    ctx.xhr.open("get", ctx.basePath+'faces/'+faceName+'.js', false);
-    ctx.xhr.send(null);
-    if (ctx.xhr.status == 200) {
-      window.eval(ctx.xhr.responseText);
-      return ctx.faces[family][weight][style];
+    window.Canvas.Text.xhr = getXHR();
+    window.Canvas.Text.xhr.open("get", window.Canvas.Text.basePath+'faces/'+faceName+'.js', false);
+    window.Canvas.Text.xhr.send(null);
+    if (window.Canvas.Text.xhr.status == 200) {
+      window.eval(window.Canvas.Text.xhr.responseText);
+      return window.Canvas.Text.faces[family][weight][style];
     }
     return false;
   };
   
-  ctx.loadFace = function(data) {
+  window.Canvas.Text.loadFace = function(data) {
     var family = data.familyName.toLowerCase();
-    ctx.faces[family] = ctx.faces[family] || {};
-    ctx.faces[family][data.cssFontWeight] = ctx.faces[family][data.cssFontWeight] || {};
-    ctx.faces[family][data.cssFontWeight][data.cssFontStyle] = data;
+    window.Canvas.Text.faces[family] = window.Canvas.Text.faces[family] || {};
+    window.Canvas.Text.faces[family][data.cssFontWeight] = window.Canvas.Text.faces[family][data.cssFontWeight] || {};
+    window.Canvas.Text.faces[family][data.cssFontWeight][data.cssFontStyle] = data;
     return data;
   };
   // To use the typeface.js face files
-  window._typeface_js = {faces: ctx.faces, loadFace: ctx.loadFace};
+  window._typeface_js = {faces: window.Canvas.Text.faces, loadFace: window.Canvas.Text.loadFace};
   
-  ctx.getFaceFromStyle = function(style) {
+  window.Canvas.Text.getFaceFromStyle = function(style) {
     var face, 
         weight = getCSSWeightEquivalent(style.weight),
         family = style.family.toLowerCase();
         
-    if (!ctx.faces[family] ||
-        !ctx.faces[family][weight] ||
-        !ctx.faces[family][weight][style.style]) {
-      face = ctx.getFace(family, weight, style.style);
+    if (!window.Canvas.Text.faces[family] ||
+        !window.Canvas.Text.faces[family][weight] ||
+        !window.Canvas.Text.faces[family][weight][style.style]) {
+      face = window.Canvas.Text.getFace(family, weight, style.style);
     }
     else {
-      face = ctx.faces[family][weight][style.style];
+      face = window.Canvas.Text.faces[family][weight][style.style];
     }
     if (!face) {
       throw 'Unable to load the font ['+style.family+' '+style.weight+' '+style.style+']';
@@ -220,14 +206,14 @@ function initCanvas(canvas) {
   };
   
   // Default values
-  ctxp.font = "10px sans-serif";
-  ctxp.textAlign = "start";
-  ctxp.textBaseline = "alphabetic";
+  proto.font = "10px sans-serif";
+  proto.textAlign = "start";
+  proto.textBaseline = "alphabetic";
   
-  ctxp.parseStyle = function(styleText) {
+  proto.parseStyle = function(styleText) {
     styleText = styleText.replace(/^\s\s*/, '').replace(/\s\s*$/, ''); // trim
     
-    if (ctx._styleCache[styleText]) return this.getComputedStyle(ctx._styleCache[styleText]);
+    if (window.Canvas.Text._styleCache[styleText]) return this.getComputedStyle(window.Canvas.Text._styleCache[styleText]);
     
     var parts, lex = [], i, part,
     // Default style
@@ -262,33 +248,29 @@ function initCanvas(canvas) {
       }
     }
     
-    return this.getComputedStyle(ctx._styleCache[styleText] = style);
+    return this.getComputedStyle(window.Canvas.Text._styleCache[styleText] = style);
   };
   
-  ctxp.buildStyle = function (style) {
+  proto.buildStyle = function (style) {
     return style.style+' '+style.weight+' '+style.size+'px "'+style.family+'"';
   };
 
-  ctxp.renderText = function(text, style) {
-    var face = ctx.getFaceFromStyle(style),
+  proto.renderText = function(text, style) {
+    var face = window.Canvas.Text.getFaceFromStyle(style),
         scale = (style.size / face.resolution) * (3/4),
         offset = 0;
     
-    this.save();
     if (!isOpera9) this.scale(scale, -scale);
-    this.beginPath();
+    this.lineWidth /= scale; // for Safari 3
     
     var i, chars = text.split(''), length = chars.length;
     for (i = 0; i < length; i++) {
       offset += this.renderGlyph(chars[i], face, scale, offset);
     }
-    
-    this.closePath();
-    this.restore();
   };
 
   if (isOpera9) {
-    ctxp.renderGlyph = function(c, face, scale, offset) {
+    proto.renderGlyph = function(c, face, scale, offset) {
       var i, cpx, cpy, outline, action, glyph = face.glyphs[c], length;
       
       if (!glyph) return;
@@ -318,17 +300,18 @@ function initCanvas(canvas) {
     };
   }
   else {
-    ctxp.renderGlyph = function(c, face) {
+    proto.renderGlyph = function(c, face) {
       var i, cpx, cpy, outline, action, glyph = face.glyphs[c], length;
       
       if (!glyph) return;
-  
+
       if (glyph.o) {
         outline = glyph._cachedOutline || (glyph._cachedOutline = glyph.o.split(' '));
         length = outline.length;
+
         for (i = 0; i < length; ) {
           action = outline[i++];
-  
+ 
           switch(action) {
             case 'm':
               this.moveTo(outline[i++], outline[i++]);
@@ -348,14 +331,14 @@ function initCanvas(canvas) {
     };
   }
   
-  ctxp.getTextExtents = function(text, style){
+  proto.getTextExtents = function(text, style){
     var width = 0, 
         height = 0, horizontalAdvance = 0, 
-        face = ctx.getFaceFromStyle(style),
+        face = window.Canvas.Text.getFaceFromStyle(style),
         i, glyph;
     
     for (i = text.length - 1; i > 0; --i) {
-      glyph = face.glyphs[text.charAt(i)] || face.glyphs[ctx.options.fallbackCharacter];
+      glyph = face.glyphs[text.charAt(i)] || face.glyphs[window.Canvas.Text.options.fallbackCharacter];
       width += Math.max(glyph.ha, glyph.x_max);
       horizontalAdvance += glyph.ha;
     }
@@ -367,7 +350,7 @@ function initCanvas(canvas) {
     };
   };
   
-  ctxp.getComputedStyle = function(style) {
+  proto.getComputedStyle = function(style) {
     var p, canvasStyle = getElementStyle(this.canvas), 
         computedStyle = {};
     
@@ -403,11 +386,11 @@ function initCanvas(canvas) {
     return computedStyle;
   };
   
-  ctxp.getTextOffset = function(text, style) {
+  proto.getTextOffset = function(text, style) {
     var canvasStyle = getElementStyle(this.canvas),
         metrics = this.measureText(text), 
         offset = {x: 0, y: 0},
-        face = ctx.getFaceFromStyle(style),
+        face = window.Canvas.Text.getFaceFromStyle(style),
         scale = (style.size / face.resolution) * (3/4);
 
     switch (this.textAlign) {
@@ -434,7 +417,7 @@ function initCanvas(canvas) {
     return offset;
   };
   
-  ctxp.beginText = function(text, x, y, maxWidth, style){
+  proto.beginText = function(text, x, y, maxWidth, style){
     text = text || '';
     var offset = this.getTextOffset(text, style);
     
@@ -443,7 +426,7 @@ function initCanvas(canvas) {
     this.beginPath();
   };
   
-  ctxp.fillText = function(text, x, y, maxWidth){
+  proto.fillText = function(text, x, y, maxWidth){
     var style = this.parseStyle(this.font);
     
     text = text || '';
@@ -455,7 +438,7 @@ function initCanvas(canvas) {
       this.mozDrawText(text);
     }
     else {
-      this.scale(ctx.scaling, ctx.scaling);
+      this.scale(window.Canvas.Text.scaling, window.Canvas.Text.scaling);
       this.renderText(text, style);
     }
     
@@ -464,7 +447,7 @@ function initCanvas(canvas) {
     this.restore();
   };
   
-  ctxp.strokeText = function(text, x, y, maxWidth){
+  proto.strokeText = function(text, x, y, maxWidth){
     var style = this.parseStyle(this.font);
     
     text = text || '';
@@ -476,7 +459,7 @@ function initCanvas(canvas) {
       this.mozPathText(text);
     }
     else {
-      this.scale(ctx.scaling, ctx.scaling);
+      this.scale(window.Canvas.Text.scaling, window.Canvas.Text.scaling);
       this.renderText(text, style);
     }
     
@@ -485,7 +468,7 @@ function initCanvas(canvas) {
     this.restore();
   };
   
-  ctxp.measureText = function(text){
+  proto.measureText = function(text){
     var style = this.parseStyle(this.font), 
         dim = {width: 0};
     
@@ -496,11 +479,11 @@ function initCanvas(canvas) {
       dim.width = this.mozMeasureText(text);
     }
     else {
-      var face = ctx.getFaceFromStyle(style),
+      var face = window.Canvas.Text.getFaceFromStyle(style),
           scale = (style.size / face.resolution) * (3/4);
           
       dim = this.getTextExtents(text, style);
-      dim.width *= scale * ctx.scaling;
+      dim.width *= scale * window.Canvas.Text.scaling;
     }
     
     return dim;
