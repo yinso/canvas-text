@@ -63,10 +63,11 @@ function initCanvas(canvas) {
 /** The implementation of the text functions */
 (function(){
   var isOpera9 = (window.opera && navigator.userAgent.match(/Opera\/9/)),
-      proto = window.CanvasRenderingContext2D ? window.CanvasRenderingContext2D.prototype : document.createElement('canvas').getContext('2d').__proto__;
+      proto = window.CanvasRenderingContext2D ? window.CanvasRenderingContext2D.prototype : document.createElement('canvas').getContext('2d').__proto__,
+      ctxt = window.Canvas.Text;
 
   // Global options
-  window.Canvas.Text.options = {
+  ctxt.options = {
     fallbackCharacter: ' ', // The character that will be drawn when not present in the font face file
     dontUseMoz: false, // Don't use the builtin Firefox 3.0 functions (mozDrawText, mozPathText and mozMeasureText)
     reimplement: false, // Don't use the builtin official functions present in Chrome 2, Safari 4, and Firefox 3.1+
@@ -82,12 +83,12 @@ function initCanvas(canvas) {
       src = scripts[i].src;
       if (src.indexOf(libFileName) > 0) {
         parts = src.split('?');
-        window.Canvas.Text.basePath = parts[0].replace(libFileName, '');
+        ctxt.basePath = parts[0].replace(libFileName, '');
         if (parts[1]) {
           var options = parts[1].split('&');
           for (j = options.length-1; j >= 0; --j) {
             var pair = options[j].split('=');
-            window.Canvas.Text.options[pair[0]] = pair[1];
+            ctxt.options[pair[0]] = pair[1];
           }
         }
         break;
@@ -97,10 +98,10 @@ function initCanvas(canvas) {
   initialize();
   
   // What is the browser's implementation ?
-  var moz = !window.Canvas.Text.options.dontUseMoz && proto.mozDrawText && !proto.strokeText;
+  var moz = !ctxt.options.dontUseMoz && proto.mozDrawText && !proto.strokeText;
 
   // If the text functions are already here : nothing to do !
-  if (proto.strokeText && !window.Canvas.Text.options.reimplement) return;
+  if (proto.strokeText && !ctxt.options.reimplement) return;
   
   function getCSSWeightEquivalent(weight) {
     switch(weight) {
@@ -131,67 +132,58 @@ function initCanvas(canvas) {
       function() {return new ActiveXObject('Msxml2.XMLHTTP')},
       function() {return new ActiveXObject('Microsoft.XMLHTTP')}
     ];
-    if (!window.Canvas.Text.xhr) {
+    if (!ctxt.xhr) {
       for (i = 0; i < methods.length; i++) {
         try {
-          window.Canvas.Text.xhr = methods[i](); 
+          ctxt.xhr = methods[i](); 
           break;
         } 
         catch (e) {}
       }
     }
-    return window.Canvas.Text.xhr;
+    return ctxt.xhr;
   };
   
-  window.Canvas.Text.faces = {};
-  window.Canvas.Text.scaling = 0.962;
-  window.Canvas.Text._styleCache = {};
+  ctxt.faces = {};
+  ctxt.scaling = 0.962;
+  ctxt._styleCache = {};
 
-  window.Canvas.Text.getFace = function(family, weight, style) {
-    if (window.Canvas.Text.faces[family] && 
-        window.Canvas.Text.faces[family][weight] && 
-        window.Canvas.Text.faces[family][weight][style]) return window.Canvas.Text.faces[family][weight][style];
+  ctxt.getFace = function(family, weight, style) {
+    if (ctxt.faces[family] && 
+        ctxt.faces[family][weight] && 
+        ctxt.faces[family][weight][style]) return ctxt.faces[family][weight][style];
         
-    var faceName = (family.replace('-', '')+'-'+weight+'-'+style).replace(' ', '_');
+    var faceName = (family.replace('-', '')+'-'+weight+'-'+style).replace(' ', '_'),
+        xhr = ctxt.xhr,
+        url = ctxt.basePath+'faces/'+faceName+'.js';
 
-    window.Canvas.Text.xhr = getXHR();
-    window.Canvas.Text.xhr.open("get", window.Canvas.Text.basePath+'faces/'+faceName+'.js', false);
-    window.Canvas.Text.xhr.send(null);
-    if (window.Canvas.Text.xhr.status == 200) {
-      window.eval(window.Canvas.Text.xhr.responseText);
-      return window.Canvas.Text.faces[family][weight][style];
+    xhr = getXHR();
+    xhr.open("get", url, false);
+    xhr.send(null);
+    if(xhr.status == 200) {
+      eval(xhr.responseText);
+      return ctxt.faces[family][weight][style];
     }
+    else throw 'Unable to load the font ['+family+' '+weight+' '+style+']';
     return false;
   };
   
-  window.Canvas.Text.loadFace = function(data) {
-    var family = data.familyName.toLowerCase();
-    window.Canvas.Text.faces[family] = window.Canvas.Text.faces[family] || {};
-    window.Canvas.Text.faces[family][data.cssFontWeight] = window.Canvas.Text.faces[family][data.cssFontWeight] || {};
-    window.Canvas.Text.faces[family][data.cssFontWeight][data.cssFontStyle] = data;
+  ctxt.loadFace = function(data) {
+    var family = data.familyName.toLowerCase(), ctxt = window.Canvas.Text;
+    ctxt.faces[family] = ctxt.faces[family] || {};
+    ctxt.faces[family][data.cssFontWeight] = ctxt.faces[family][data.cssFontWeight] || {};
+    ctxt.faces[family][data.cssFontWeight][data.cssFontStyle] = data;
     return data;
   };
   // To use the typeface.js face files
   window._typeface_js = {faces: window.Canvas.Text.faces, loadFace: window.Canvas.Text.loadFace};
   
-  window.Canvas.Text.getFaceFromStyle = function(style) {
+  ctxt.getFaceFromStyle = function(style) {
     var face, 
         weight = getCSSWeightEquivalent(style.weight),
         family = style.family.toLowerCase();
         
-    if (!window.Canvas.Text.faces[family] ||
-        !window.Canvas.Text.faces[family][weight] ||
-        !window.Canvas.Text.faces[family][weight][style.style]) {
-      face = window.Canvas.Text.getFace(family, weight, style.style);
-    }
-    else {
-      face = window.Canvas.Text.faces[family][weight][style.style];
-    }
-    if (!face) {
-      throw 'Unable to load the font ['+style.family+' '+style.weight+' '+style.style+']';
-      return false;
-    }
-    return face;
+    return window.Canvas.Text.getFace(family, weight, style.style);
   };
   
   // Default values
