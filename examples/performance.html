@@ -27,6 +27,7 @@
 
         canvas.onmousemove = function(e) {
           if (!waiting) {
+            e = e || window.event;
             waiting = true;
             setTimeout(function(){waiting = false}, 10);
             var start = 0, step = 60, n = 0, str;
