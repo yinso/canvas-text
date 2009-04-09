@@ -63,6 +63,7 @@ function initCanvas(canvas) {
 /** The implementation of the text functions */
 (function(){
   var isOpera9 = (window.opera && navigator.userAgent.match(/Opera\/9/)),
+      isSafari3 = !window.CanvasRenderingContext2D,
       proto = window.CanvasRenderingContext2D ? window.CanvasRenderingContext2D.prototype : document.createElement('canvas').getContext('2d').__proto__,
       ctxt = window.Canvas.Text;
 
@@ -241,8 +242,10 @@ function initCanvas(canvas) {
         scale = (style.size / face.resolution) * (3/4),
         offset = 0;
     
-    if (!isOpera9) this.scale(scale, -scale);
-    this.lineWidth /= scale; // for Safari 3
+    if (!isOpera9) {
+      this.scale(scale, -scale);
+      this.lineWidth /= scale;
+    }
     
     var i, chars = text.split(''), length = chars.length;
     for (i = 0; i < length; i++) {
