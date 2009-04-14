@@ -66,7 +66,10 @@ function initCanvas(canvas) {
       isSafari3 = !window.CanvasRenderingContext2D,
       proto = window.CanvasRenderingContext2D ? window.CanvasRenderingContext2D.prototype : document.createElement('canvas').getContext('2d').__proto__,
       ctxt = window.Canvas.Text;
-
+  
+  // typeface.js integration
+  window._typeface_js = {loadFace: function(){}};
+  
   // Global options
   ctxt.options = {
     fallbackCharacter: ' ', // The character that will be drawn when not present in the font face file
@@ -188,9 +191,11 @@ function initCanvas(canvas) {
   };
   
   // Default values
-  proto.font = "10px sans-serif";
-  proto.textAlign = "start";
-  proto.textBaseline = "alphabetic";
+  try {
+    proto.font = "10px sans-serif";
+    proto.textAlign = "start";
+    proto.textBaseline = "alphabetic";
+  } catch (e) {}
   
   proto.parseStyle = function(styleText) {
     styleText = styleText.replace(/^\s\s*/, '').replace(/\s\s*$/, ''); // trim
