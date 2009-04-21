@@ -56,7 +56,7 @@ if (!document.createElement('canvas').getContext) {
   function getContext() {
     return this.context_ ||
         (this.context_ = new CanvasRenderingContext2D_(this));
-  };
+  }
 
   var slice = Array.prototype.slice;
 
@@ -81,7 +81,15 @@ if (!document.createElement('canvas').getContext) {
     return function() {
       return f.apply(obj, a.concat(slice.call(arguments)));
     };
-  };
+  }
+
+  function arrayContains(arr, item) {
+    var length = this.length;
+    for (var i = 0; i < length; i++) {
+      if (arr[i] === item) return true;
+    }
+    return false;
+  }
 
   var G_vmlCanvasManager_ = {
     init: function(opt_doc) {
@@ -112,10 +120,7 @@ if (!document.createElement('canvas').getContext) {
         ss.owningElement.id = 'ex_canvas_';
         ss.cssText = 'canvas{display:inline-block;overflow:hidden;' +
             // default size is 300x150 in Gecko and Opera
-            'text-align:left;width:300px;height:150px}' +
-            'g_vml_\\:*{behavior:url(#default#VML)}' +
-            'g_o_\\:*{behavior:url(#default#VML)}';
-
+            'text-align:left;width:300px;height:150px}';
       }
 
       // find all canvas elements
@@ -164,7 +169,10 @@ if (!document.createElement('canvas').getContext) {
         //el.getContext().setCoordsize_()
       }
       return el;
-    }
+    },
+
+    // Internal text style cache
+    fontStyleCache_: {}
   };
 
   function onPropertyChange(e) {
@@ -180,7 +188,7 @@ if (!document.createElement('canvas').getContext) {
         el.getContext().clearRect();
         break;
     }
-  };
+  }
 
   function onResize(e) {
     var el = e.srcElement;
@@ -188,7 +196,7 @@ if (!document.createElement('canvas').getContext) {
       el.firstChild.style.width =  el.clientWidth + 'px';
       el.firstChild.style.height = el.clientHeight + 'px';
     }
-  };
+  }
 
   G_vmlCanvasManager_.init();
 
@@ -198,7 +206,7 @@ if (!document.createElement('canvas').getContext) {
     for (var j = 0; j < 16; j++) {
       dec2hex[i * 16 + j] = i.toString(16) + j.toString(16);
     }
-  };
+  }
 
   function createMatrixIdentity() {
     return [
@@ -206,7 +214,7 @@ if (!document.createElement('canvas').getContext) {
       [0, 1, 0],
       [0, 0, 1]
     ];
-  };
+  }
 
   function matrixMultiply(m1, m2) {
     var result = createMatrixIdentity();
@@ -223,7 +231,7 @@ if (!document.createElement('canvas').getContext) {
       }
     }
     return result;
-  };
+  }
 
   function copyState(o1, o2) {
     o2.fillStyle     = o1.fillStyle;
@@ -237,10 +245,13 @@ if (!document.createElement('canvas').getContext) {
     o2.shadowOffsetY = o1.shadowOffsetY;
     o2.strokeStyle   = o1.strokeStyle;
     o2.globalAlpha   = o1.globalAlpha;
+    o2.font          = o1.font;
+    o2.textAlign     = o1.textAlign;
+    o2.textBaseline  = o1.textBaseline;
     o2.arcScaleX_    = o1.arcScaleX_;
     o2.arcScaleY_    = o1.arcScaleY_;
     o2.lineScale_    = o1.lineScale_;
-  };
+  }
 
   function processStyle(styleString) {
     var str, alpha = 1;
@@ -264,7 +275,90 @@ if (!document.createElement('canvas').getContext) {
     }
 
     return {color: str, alpha: alpha};
-  };
+  }
+
+  function processFontStyle (styleString) {
+    styleString = styleString.replace(/^\s\s*/, '').replace(/\s\s*$/, '');
+
+    if (G_vmlCanvasManager_.fontStyleCache_[styleString]) {
+      return G_vmlCanvasManager_.fontStyleCache_[styleString];
+    }
+
+    var lex = [], i, p, v, part;
+
+    // Default style
+    var style = {
+      style: 'normal',
+      variant: 'normal',
+      weight: 'normal',
+      size: 10,
+      family: 'sans-serif'
+    };
+
+    var possibleValues = {
+      weight: ['bold', 'bolder', 'lighter', '100', '200', '300', '400', '500',
+               '600', '700', '800', '900'],
+      style: ['italic', 'oblique'],
+      variant: ['small-caps']
+    }
+
+    var parts = styleString.match(/([\w\%-_]+|"[^"]+"|'[^']+')*/g);
+    for (i = 0; parts && i < parts.length; i++) {
+      part = parts[i].replace(/^["']*/, '').replace(/["']*$/, '');
+      if (part) lex.push(part);
+    }
+
+    style.family = lex.pop() || style.family;
+    style.size = lex.pop() || style.size;
+
+    for (p in possibleValues) {
+      v = possibleValues[p];
+      for (i = 0; v && i < v.length; i++) {
+        if (arrayContains(lex, v[i])) {
+          style[p] = v[i];
+          break;
+        }
+      }
+    }
+
+    return G_vmlCanvasManager_.fontStyleCache_[styleString] = style;
+  }
+
+  function getComputedStyle(style, element) {
+    var computedStyle = {};
+
+    for (var p in style) {
+      computedStyle[p] = style[p];
+    }
+
+    // Compute the size
+    var canvasFontSize = parseFloat(element.currentStyle.fontSize),
+        fontSize = parseFloat(style.size);
+
+    if (typeof style.size == 'number') {
+      computedStyle.size = style.size;
+    } else if (style.size.indexOf('px') != -1) {
+      computedStyle.size = parseFloat(style.size);
+    } else if (style.size.indexOf('em') != -1) {
+      computedStyle.size = canvasFontSize * fontSize;
+    } else if(style.size.indexOf('%') != -1) {
+      computedStyle.size = (canvasFontSize / 100) * fontSize;
+    } else if (style.size.indexOf('pt') != -1) {
+      computedStyle.size = canvasFontSize * (4/3) * fontSize;
+    } else {
+      computedStyle.size = canvasFontSize;
+    }
+
+    // Different scaling between normal text and VML text
+    computedStyle.size *= 0.981;
+
+    return computedStyle;
+  }
+
+  function buildStyle(style) {
+    return style.style + ' ' + style.variant + ' ' + style.weight + ' ' +
+        style.size + 'px \'' + style.family + '\'';
+  }
 
   function processLineCap(lineCap) {
     switch (lineCap) {
@@ -276,7 +370,7 @@ if (!document.createElement('canvas').getContext) {
       default:
         return 'square';
     }
-  };
+  }
 
   /**
    * This class implements CanvasRenderingContext2D interface as described by
@@ -300,6 +394,9 @@ if (!document.createElement('canvas').getContext) {
     this.lineCap = 'butt';
     this.miterLimit = Z * 1;
     this.globalAlpha = 1;
+    this.font = '10px sans-serif';
+    this.textAlign = 'left';
+    this.textBaseline = 'alphabetic';
     this.canvas = surfaceElement;
 
     var el = surfaceElement.ownerDocument.createElement('div');
@@ -313,25 +410,29 @@ if (!document.createElement('canvas').getContext) {
     this.arcScaleX_ = 1;
     this.arcScaleY_ = 1;
     this.lineScale_ = 1;
-  };
+  }
 
   var contextPrototype = CanvasRenderingContext2D_.prototype;
   contextPrototype.clearRect = function() {
+    if (this.textMeasureEl_) {
+      this.textMeasureEl_.removeNode(true);
+      this.textMeasureEl_ = null;
+    }
     this.element_.innerHTML = '';
-  };
+  }
 
   contextPrototype.beginPath = function() {
     // TODO: Branch current matrix so that save/restore has no effect
     //       as per safari docs.
     this.currentPath_ = [];
-  };
+  }
 
   contextPrototype.moveTo = function(aX, aY) {
     var p = this.getCoords_(aX, aY);
     this.currentPath_.push({type: 'moveTo', x: p.x, y: p.y});
     this.currentX_ = p.x;
     this.currentY_ = p.y;
-  };
+  }
 
   contextPrototype.lineTo = function(aX, aY) {
     var p = this.getCoords_(aX, aY);
@@ -339,7 +440,7 @@ if (!document.createElement('canvas').getContext) {
 
     this.currentX_ = p.x;
     this.currentY_ = p.y;
-  };
+  }
 
   contextPrototype.bezierCurveTo = function(aCP1x, aCP1y,
                                             aCP2x, aCP2y,
@@ -348,7 +449,7 @@ if (!document.createElement('canvas').getContext) {
     var cp1 = this.getCoords_(aCP1x, aCP1y);
     var cp2 = this.getCoords_(aCP2x, aCP2y);
     bezierCurveTo(this, cp1, cp2, p);
-  };
+  }
 
   // Helper function that takes the already fixed cordinates.
   function bezierCurveTo(self, cp1, cp2, p) {
@@ -363,7 +464,7 @@ if (!document.createElement('canvas').getContext) {
     });
     self.currentX_ = p.x;
     self.currentY_ = p.y;
-  };
+  }
 
   contextPrototype.quadraticCurveTo = function(aCPx, aCPy, aX, aY) {
     // the following is lifted almost directly from
@@ -538,7 +639,8 @@ if (!document.createElement('canvas').getContext) {
     // The following check doesn't account for skews (which don't exist
     // in the canvas spec (yet) anyway.
 
-    if (this.m_[0][0] != 1 || this.m_[0][1]) {
+    if (this.m_[0][0] != 1 || this.m_[0][1] ||
+        this.m_[1][1] != 1 || this.m_[1][0]) {
       var filter = [];
 
       // Note the 12/21 reversal
@@ -577,8 +679,7 @@ if (!document.createElement('canvas').getContext) {
                 ' />',
                 '</g_vml_:group>');
 
-    this.element_.insertAdjacentHTML('BeforeEnd',
-                                    vmlStr.join(''));
+    this.element_.insertAdjacentHTML('beforeEnd', vmlStr.join(''));
   };
 
   contextPrototype.stroke = function(aFill) {
@@ -812,15 +913,10 @@ if (!document.createElement('canvas').getContext) {
   };
 
   function matrixIsFinite(m) {
-    for (var j = 0; j < 3; j++) {
-      for (var k = 0; k < 2; k++) {
-        if (!isFinite(m[j][k]) || isNaN(m[j][k])) {
-          return false;
-        }
-      }
-    }
-    return true;
-  };
+    return isFinite(m[0][0]) && isFinite(m[0][1]) &&
+        isFinite(m[1][0]) && isFinite(m[1][1]) &&
+        isFinite(m[2][0]) && isFinite(m[2][1]);
+  }
 
   function setM(ctx, m, updateLineScale) {
     if (!matrixIsFinite(m)) {
@@ -836,7 +932,7 @@ if (!document.createElement('canvas').getContext) {
       var det = m[0][0] * m[1][1] - m[0][1] * m[1][0];
       ctx.lineScale_ = sqrt(abs(det));
     }
-  };
+  }
 
   contextPrototype.translate = function(aX, aY) {
     var m1 = [
@@ -893,6 +989,125 @@ if (!document.createElement('canvas').getContext) {
     setM(this, m, true);
   };
 
+  /**
+   * The text deawing function.
+   * The maxWidth argument isn't taken in account, since no browser supports
+   * it yet.
+   */
+  contextPrototype.drawText_ = function(text, x, y, maxWidth, stroke) {
+    var a = processStyle(stroke ? this.strokeStyle : this.fillStyle),
+        color = a.color,
+        opacity = a.alpha * this.globalAlpha,
+        lineWidth = this.lineScale_ * this.lineWidth,
+        
+        m = this.m_,
+        delta = 100,
+        left = 0,
+        right = delta,
+        offset = {x: 0, y: 0},
+        lineStr = [];
+        
+    if (lineWidth < 1) opacity *= lineWidth;
+
+    var fontStyle = getComputedStyle(processFontStyle(this.font),
+                                     this.element_);
+                                     
+    var fontStyleString = buildStyle(fontStyle);
+
+    var elementStyle = this.element_.currentStyle,
+        textAlign = this.textAlign.match(/^(left|center|right)$/i) ?
+            this.textAlign :
+            (this.textAlign == 'end' && elementStyle.direction == 'ltr' ||
+             this.textAlign == 'start' && elementStyle.direction == 'rtl' ?
+                'right' : 'left');
+
+    // 1.75 is an arbitrary number, as there is no info about the text baseline
+    switch (this.textBaseline) {
+      case 'hanging':
+      case 'top':
+        offset.y = fontStyle.size / 1.75;
+        break;
+      case 'middle':
+        break;
+      default:
+      case null:
+      case 'alphabetic':
+      case 'ideographic':
+      case 'bottom':
+        offset.y = -fontStyle.size / 1.75;
+        break;
+    }
+
+    switch(textAlign) {
+      case 'right':
+        left = delta;
+        right = 0;
+        break;
+      case 'center':
+        left = right = delta / 2;
+        break;
+    }
+
+    var d = this.getCoords_(x + offset.x, y + offset.y);
+
+    lineStr.push('<g_vml_:line from="', -left ,' 0" to="', right ,' 0.1" ',
+                 ' coordsize="100 100" coordorigin="0 0"',
+                 ' filled="', !stroke, '" stroked="', !!stroke,
+                 '" style="position:absolute;width:1px;height:1px;">');
+
+    if (stroke) {
+      lineStr.push('<g_vml_:stroke on="true"',
+                   ' opacity="', opacity, '"',
+                   ' joinstyle="', this.lineJoin, '"',
+                   ' miterlimit="', this.miterLimit, '"',
+                   ' endcap="', processLineCap(this.lineCap), '"',
+                   ' weight="', lineWidth, 'px"',
+                   ' color="', color, '" />');
+    } else {
+      lineStr.push('<g_vml_:fill on="true" opacity="', opacity,
+                   '" color="', color, '" />');
+    }
+
+    var skewM = m[0][0].toFixed(3)+','+m[1][0].toFixed(3)+','+
+                m[0][1].toFixed(3)+','+m[1][1].toFixed(3)+',0,0';
+                
+    var skewOffset = mr(d.x / Z)+','+mr(d.y / Z);
+    
+    lineStr.push('<g_vml_:skew on="t" matrix="', skewM ,'" ', 
+                 ' offset="', skewOffset, '" origin="', left ,' 0" />',
+                 '<g_vml_:path textpathok="true" />',
+                 '<g_vml_:textpath on="true" string="', text,
+                 '" style="v-text-align:', textAlign, ';font:', 
+                 fontStyleString ,'" />',
+                 '</g_vml_:line>');
+                 
+    this.element_.insertAdjacentHTML('beforeEnd', lineStr.join(''));
+  };
+
+  contextPrototype.fillText = function(text, x, y, maxWidth) {
+    this.drawText_(text, x, y, maxWidth, false);
+  };
+
+  contextPrototype.strokeText = function(text, x, y, maxWidth) {
+    this.drawText_(text, x, y, maxWidth, true);
+  };
+
+  contextPrototype.measureText = function(text) {
+    if (!this.textMeasureEl_) {
+      // We should also parse the font style
+      var s = '<span style="position:absolute;' +
+          'top:-20000px;left:0;padding:0;margin:0;border:none;' +
+          'white-space:pre;font:' + this.font + '"></span>';
+      this.element_.insertAdjacentHTML('beforeEnd', s);
+      this.textMeasureEl_ = this.element_.lastChild;
+    }
+    var doc = this.element_.ownerDocument;
+    this.textMeasureEl_.innerHTML = '';
+    // Don't use innerHTML or innerText because they allow markup/whitespace.
+    this.textMeasureEl_.appendChild(doc.createTextNode(text));
+    return {width: this.textMeasureEl_.offsetWidth};
+  };
+
   /******** STUBS ********/
   contextPrototype.clip = function() {
     // TODO: Implement
@@ -916,7 +1131,7 @@ if (!document.createElement('canvas').getContext) {
     this.y1_ = 0;
     this.r1_ = 0;
     this.colors_ = [];
-  };
+  }
 
   CanvasGradient_.prototype.addColorStop = function(aOffset, aColor) {
     aColor = processStyle(aColor);
@@ -945,11 +1160,11 @@ if (!document.createElement('canvas').getContext) {
     this.src_ = image.src;
     this.width_ = image.width;
     this.height_ = image.height;
-  };
+  }
 
   function throwException(s) {
     throw new DOMException_(s);
-  };
+  }
 
   function assertImageIsValid(img) {
     if (!img || img.nodeType != 1 || img.tagName != 'IMG') {
@@ -958,12 +1173,13 @@ if (!document.createElement('canvas').getContext) {
     if (img.readyState != 'complete') {
       throwException('INVALID_STATE_ERR');
     }
-  };
+  }
 
   function DOMException_(s) {
     this.code = this[s];
     this.message = s +': DOM Exception ' + this.code;
-  };
+  }
+
   var p = DOMException_.prototype = new Error;
   p.INDEX_SIZE_ERR = 1;
   p.DOMSTRING_SIZE_ERR = 2;

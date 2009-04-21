@@ -46,7 +46,11 @@ window.Canvas.Text = {
     'monospace': ['Courier', 'Courier New', 'Prestige', 'Everson Mono'],
     'cursive': ['Caflisch Script', 'Adobe Poetica', 'Sanvito', 'Ex Ponto', 'Snell Roundhand', 'Zapf-Chancery'],
     'fantasy': ['Alpha Geometrique', 'Critter', 'Cottonwood', 'FB Reactor', 'Studz']
-  }
+  },
+  
+  faces: {},
+  scaling: 0.962,
+  _styleCache: {}
 };
 
 /** Initializes a canvas element for Internet Explorer if 
@@ -62,14 +66,11 @@ function initCanvas(canvas) {
 
 /** The implementation of the text functions */
 (function(){
-  var isOpera9 = (window.opera && navigator.userAgent.match(/Opera\/9/)),
+  var isOpera9 = (window.opera && navigator.userAgent.match(/Opera\/9/)), // It seems to be faster when the hacked methods are used. But there are artifacts with Opera 10.
       isSafari3 = !window.CanvasRenderingContext2D,
       proto = window.CanvasRenderingContext2D ? window.CanvasRenderingContext2D.prototype : document.createElement('canvas').getContext('2d').__proto__,
       ctxt = window.Canvas.Text;
-  
-  // typeface.js integration
-  window._typeface_js = {loadFace: function(){}};
-  
+
   // Global options
   ctxt.options = {
     fallbackCharacter: ' ', // The character that will be drawn when not present in the font face file
@@ -105,7 +106,11 @@ function initCanvas(canvas) {
   var moz = !ctxt.options.dontUseMoz && proto.mozDrawText && !proto.strokeText;
 
   // If the text functions are already here : nothing to do !
-  if (proto.strokeText && !ctxt.options.reimplement) return;
+  if (proto.strokeText && !ctxt.options.reimplement) {
+    // This property is needed, when including the font face files
+    window._typeface_js = {loadFace: function(){}};
+    return;
+  }
   
   function getCSSWeightEquivalent(weight) {
     switch(weight) {
@@ -124,10 +129,12 @@ function initCanvas(canvas) {
   };
   
   function getElementStyle(e) {
+    if (e.computedStyle) return e.computedStyle;
     if (window.getComputedStyle)
-      return window.getComputedStyle(e, '');
+      e.computedStyle = window.getComputedStyle(e, '');
     else if (e.currentStyle)
-      return e.currentStyle;
+      e.computedStyle = e.currentStyle;
+    return e.computedStyle;
   };
   
   function getXHR() {
@@ -147,86 +154,83 @@ function initCanvas(canvas) {
     }
     return ctxt.xhr;
   };
-  
-  ctxt.faces = {};
-  ctxt.scaling = 0.962;
-  ctxt._styleCache = {};
 
   ctxt.getFace = function(family, weight, style) {
-    if (ctxt.faces[family] && 
-        ctxt.faces[family][weight] && 
-        ctxt.faces[family][weight][style]) return ctxt.faces[family][weight][style];
+    if (this.faces[family] && 
+        this.faces[family][weight] && 
+        this.faces[family][weight][style]) return this.faces[family][weight][style];
         
-    var faceName = (family.replace('-', '')+'-'+weight+'-'+style).replace(' ', '_'),
-        xhr = ctxt.xhr,
-        url = ctxt.basePath+'faces/'+faceName+'.js';
+    var faceName = (family.replace(/[ -]/g, '_')+'-'+weight+'-'+style),
+        xhr = this.xhr,
+        url = this.basePath+'faces/'+faceName+'.js';
 
     xhr = getXHR();
     xhr.open("get", url, false);
     xhr.send(null);
     if(xhr.status == 200) {
       eval(xhr.responseText);
-      return ctxt.faces[family][weight][style];
+      return this.faces[family][weight][style];
     }
     else throw 'Unable to load the font ['+family+' '+weight+' '+style+']';
     return false;
   };
   
   ctxt.loadFace = function(data) {
-    var family = data.familyName.toLowerCase(), ctxt = window.Canvas.Text;
-    ctxt.faces[family] = ctxt.faces[family] || {};
-    ctxt.faces[family][data.cssFontWeight] = ctxt.faces[family][data.cssFontWeight] || {};
-    ctxt.faces[family][data.cssFontWeight][data.cssFontStyle] = data;
+    var family = data.familyName.toLowerCase();
+    this.faces[family] = this.faces[family] || {};
+    this.faces[family][data.cssFontWeight] = this.faces[family][data.cssFontWeight] || {};
+    this.faces[family][data.cssFontWeight][data.cssFontStyle] = data;
     return data;
   };
   // To use the typeface.js face files
-  window._typeface_js = {faces: window.Canvas.Text.faces, loadFace: window.Canvas.Text.loadFace};
+  window._typeface_js = {faces: ctxt.faces, loadFace: ctxt.loadFace};
   
   ctxt.getFaceFromStyle = function(style) {
-    var face, 
-        weight = getCSSWeightEquivalent(style.weight),
+    var weight = getCSSWeightEquivalent(style.weight),
         family = style.family.toLowerCase();
         
-    return window.Canvas.Text.getFace(family, weight, style.style);
+    return this.getFace(family, weight, style.style);
   };
   
   // Default values
-  try {
+  // Firefox 3.5 throws an error when redefining these properties
+  try { 
     proto.font = "10px sans-serif";
     proto.textAlign = "start";
     proto.textBaseline = "alphabetic";
-  } catch (e) {}
+  }
+  catch(e){}
   
   proto.parseStyle = function(styleText) {
     styleText = styleText.replace(/^\s\s*/, '').replace(/\s\s*$/, ''); // trim
     
-    if (window.Canvas.Text._styleCache[styleText]) return this.getComputedStyle(window.Canvas.Text._styleCache[styleText]);
+    if (ctxt._styleCache[styleText]) return this.getComputedStyle(ctxt._styleCache[styleText]);
     
-    var parts, lex = [], i, part,
+    var parts, lex = [], i, p, v, part,
     // Default style
     style = {
       family: 'sans-serif',
       size: 10,
       weight: 'normal',
       style: 'normal'
-    };
+    },
     
-    var possibleValues = {
+    possibleValues = {
       weight: ['bold', 'bolder', 'lighter', '100', '200', '300', '400', '500', '600', '700', '800', '900'],
-      style: ['italic'/*, 'oblique'*/]
+      style: ['italic', 'oblique']
     };
     
-    parts = styleText.match(/([\w\%-_]+|"[^"]+"|'[^']+')*/g);
+    parts = styleText.match(/("[^"]+"|'[^']+'|[\w\%-_]+)*/g);
     for(i = 0; i < parts.length; i++) {
-      part = parts[i].replace(/^["']/, '').replace(/["']*$/, '');
-      if (part) lex.push(part); 
+      part = parts[i].replace(/^["']*/, '').replace(/["']*$/, '');
+      if (part) lex.push(part);
     }
     
     style.family = lex.pop() || style.family;
     style.size = lex.pop() || style.size;
     
-    for (var p in possibleValues) {
-      var v = possibleValues[p];
+    for (p in possibleValues) {
+      v = possibleValues[p];
       for (i = 0; i < v.length; i++) {
         if (lex.indexOf(v[i]) != -1) {
           style[p] = v[i];
@@ -235,7 +239,7 @@ function initCanvas(canvas) {
       }
     }
     
-    return this.getComputedStyle(window.Canvas.Text._styleCache[styleText] = style);
+    return this.getComputedStyle(ctxt._styleCache[styleText] = style);
   };
   
   proto.buildStyle = function (style) {
@@ -243,7 +247,7 @@ function initCanvas(canvas) {
   };
 
   proto.renderText = function(text, style) {
-    var face = window.Canvas.Text.getFaceFromStyle(style),
+    var face = ctxt.getFaceFromStyle(style),
         scale = (style.size / face.resolution) * (3/4),
         offset = 0;
     
@@ -297,7 +301,6 @@ function initCanvas(canvas) {
       if (glyph.o) {
         outline = glyph._cachedOutline || (glyph._cachedOutline = glyph.o.split(' '));
         length = outline.length;
-
         for (i = 0; i < length; ) {
           action = outline[i++];
  
@@ -323,11 +326,11 @@ function initCanvas(canvas) {
   proto.getTextExtents = function(text, style){
     var width = 0, 
         height = 0, horizontalAdvance = 0, 
-        face = window.Canvas.Text.getFaceFromStyle(style),
+        face = ctxt.getFaceFromStyle(style),
         i, glyph;
     
     for (i = text.length - 1; i > 0; --i) {
-      glyph = face.glyphs[text.charAt(i)] || face.glyphs[window.Canvas.Text.options.fallbackCharacter];
+      glyph = face.glyphs[text.charAt(i)] || face.glyphs[ctxt.options.fallbackCharacter];
       width += Math.max(glyph.ha, glyph.x_max);
       horizontalAdvance += glyph.ha;
     }
@@ -361,8 +364,8 @@ function initCanvas(canvas) {
     var canvasFontSize = parseFloat(canvasStyle.fontSize),
         fontSize = parseFloat(style.size);
 
-    if (typeof style.size == 'number') 
-      computedStyle.size = canvasFontSize;
+    if (typeof style.size == 'number' || style.size.indexOf('px') != -1) 
+      computedStyle.size = fontSize;
     else if (style.size.indexOf('em') != -1)
       computedStyle.size = canvasFontSize * fontSize;
     else if(style.size.indexOf('%') != -1)
@@ -375,12 +378,11 @@ function initCanvas(canvas) {
     return computedStyle;
   };
   
-  proto.getTextOffset = function(text, style) {
+  proto.getTextOffset = function(text, style, face) {
     var canvasStyle = getElementStyle(this.canvas),
         metrics = this.measureText(text), 
-        offset = {x: 0, y: 0},
-        face = window.Canvas.Text.getFaceFromStyle(style),
-        scale = (style.size / face.resolution) * (3/4);
+        scale = (style.size / face.resolution) * (3/4),
+        offset = {x: 0, y: 0, metrics: metrics, scale: scale};
 
     switch (this.textAlign) {
       default:
@@ -395,7 +397,7 @@ function initCanvas(canvas) {
     switch (this.textBaseline) {
       case 'hanging': 
       case 'top': offset.y = face.ascender; break;
-      case 'middle': offset.y = (face.ascender + face.descender) / 2;
+      case 'middle': offset.y = (face.ascender + face.descender) / 2; break;
       default:
       case null:
       case 'alphabetic':
@@ -405,56 +407,67 @@ function initCanvas(canvas) {
     offset.y *= scale;
     return offset;
   };
-  
-  proto.beginText = function(text, x, y, maxWidth, style){
+
+  proto.drawText = function(text, x, y, maxWidth, stroke){
     text = text || '';
-    var offset = this.getTextOffset(text, style);
+    
+    var style = this.parseStyle(this.font),
+        face = ctxt.getFaceFromStyle(style),
+        offset = this.getTextOffset(text, style, face);
     
     this.save();
     this.translate(x + offset.x, y + offset.y);
+    if (face.strokeFont && !stroke) {
+      this.strokeStyle = this.fillStyle;
+    }
     this.beginPath();
+
+    if (moz) {
+      this.mozTextStyle = this.buildStyle(style);
+      this[stroke ? 'mozPathText' : 'mozDrawText'](text);
+    }
+    else {
+      this.scale(ctxt.scaling, ctxt.scaling);
+      this.renderText(text, style);
+      if (face.strokeFont) {
+        this.lineWidth = style.size * (style.weight == 'bold' ? 0.5 : 0.3);
+      }
+    }
+
+    this[(stroke || (face.strokeFont && !moz)) ? 'stroke' : 'fill']();
+
+    this.closePath();
+    this.restore();
+    
+    if (ctxt.options.debug) {
+      var left = Math.floor(offset.x + x) + 0.5,
+          top = Math.floor(y)+0.5;
+          
+      this.save();
+      this.strokeStyle = '#F00';
+      this.lineWidth = 0.5;
+      this.beginPath();
+      
+      // Text baseline
+      this.moveTo(left + offset.metrics.width, top);
+      this.lineTo(left, top);
+      
+      // Text align
+      this.moveTo(left - offset.x, top + offset.y);
+      this.lineTo(left - offset.x, top + offset.y - style.size);
+      
+      this.stroke();
+      this.closePath();
+      this.restore();
+    }
   };
   
   proto.fillText = function(text, x, y, maxWidth){
-    var style = this.parseStyle(this.font);
-    
-    text = text || '';
-    
-    this.beginText(text, x, y , maxWidth, style);
-    
-    if (moz) {
-      this.mozTextStyle = this.buildStyle(style);
-      this.mozDrawText(text);
-    }
-    else {
-      this.scale(window.Canvas.Text.scaling, window.Canvas.Text.scaling);
-      this.renderText(text, style);
-    }
-    
-    this.closePath();
-    this.fill();
-    this.restore();
+    this.drawText(text, x, y, maxWidth, false);
   };
   
   proto.strokeText = function(text, x, y, maxWidth){
-    var style = this.parseStyle(this.font);
-    
-    text = text || '';
-    
-    this.beginText(text, x, y , maxWidth, style);
-    
-    if (moz) {
-      this.mozTextStyle = this.buildStyle(style);
-      this.mozPathText(text);
-    }
-    else {
-      this.scale(window.Canvas.Text.scaling, window.Canvas.Text.scaling);
-      this.renderText(text, style);
-    }
-    
-    this.closePath();
-    this.stroke();
-    this.restore();
+    this.drawText(text, x, y, maxWidth, true);
   };
   
   proto.measureText = function(text){
@@ -468,11 +481,11 @@ function initCanvas(canvas) {
       dim.width = this.mozMeasureText(text);
     }
     else {
-      var face = window.Canvas.Text.getFaceFromStyle(style),
+      var face = ctxt.getFaceFromStyle(style),
           scale = (style.size / face.resolution) * (3/4);
           
       dim = this.getTextExtents(text, style);
-      dim.width *= scale * window.Canvas.Text.scaling;
+      dim.width *= scale * ctxt.scaling;
     }
     
     return dim;
