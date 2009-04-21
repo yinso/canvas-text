@@ -6,7 +6,7 @@
     <link rel="stylesheet" type="text/css" href="style.css" />
     
     <!--[if IE]><script type="text/javascript" src="../excanvas.js"></script><![endif]-->
-    <script type="text/javascript" src="../canvas.text.js"></script>
+    <script type="text/javascript" src="../canvas.text.js?reimplement=true&dontUseMoz=true"></script>
 	</head>
 	<body>
     <h1>Canvas text position example</h1>
@@ -53,21 +53,24 @@
         for (i = 0; i < align.length; i++) {
           for (j = 0; j < baseline.length; j++) {
             ctx.save();
-            ctx.translate(i * 170 + 0.5, j * 50 + 0.5);
+              ctx.translate(i * 170 + 0.5, j * 50 + 0.5);
+              
+              ctx.textAlign = align[i];
+              ctx.textBaseline = baseline[j];
+              
+              ctx.fillText(text, 0, 0);
+              
+              ctx.beginPath();
+                ctx.moveTo(-50, 0);
+                ctx.lineTo(50, 0);
+                
+                ctx.moveTo(0, -10);
+                ctx.lineTo(0, 10);
+              ctx.closePath();
             
-            ctx.textAlign = align[i];
-            ctx.textBaseline = baseline[j];
-            
-            ctx.fillText(text, 0, 0);
-            
-            ctx.moveTo(-50, 0);
-            ctx.lineTo(50, 0);
-            
-            ctx.moveTo(0, -10);
-            ctx.lineTo(0, 10);
-            
-            ctx.restore();
             ctx.stroke();
+            ctx.restore();
+            
           }
         }
 			}

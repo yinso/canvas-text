@@ -324,21 +324,20 @@ function initCanvas(canvas) {
   }
   
   proto.getTextExtents = function(text, style){
-    var width = 0, 
-        height = 0, horizontalAdvance = 0, 
+    var width = 0, height = 0, ha = 0, 
         face = ctxt.getFaceFromStyle(style),
         i, glyph;
     
-    for (i = text.length - 1; i > 0; --i) {
+    for (i = 0; i < text.length; i++) {
       glyph = face.glyphs[text.charAt(i)] || face.glyphs[ctxt.options.fallbackCharacter];
       width += Math.max(glyph.ha, glyph.x_max);
-      horizontalAdvance += glyph.ha;
+      ha += glyph.ha;
     }
     
     return {
       width: width,
-      height: height,
-      ha: horizontalAdvance
+      height: face.lineHeight,
+      ha: ha
     };
   };
   
@@ -348,16 +347,6 @@ function initCanvas(canvas) {
     
     for (p in style) {
       computedStyle[p] = style[p];
-    }
-    
-    // Text align
-    if (this.textAlign.match(/^(left|center|right)$/i)) {
-      computedStyle.align = this.textAlign;
-    } 
-    else {
-      computedStyle.align = (
-        ((this.textAlign === 'end' && canvasStyle.direction == 'ltr') || 
-         (this.textAlign === 'start' && canvasStyle.direction == 'rtl')) ? 'right' : 'left');
     }
     
     // Compute the size
@@ -409,8 +398,6 @@ function initCanvas(canvas) {
   };
 
   proto.drawText = function(text, x, y, maxWidth, stroke){
-    text = text || '';
-    
     var style = this.parseStyle(this.font),
         face = ctxt.getFaceFromStyle(style),
         offset = this.getTextOffset(text, style, face);
@@ -474,8 +461,6 @@ function initCanvas(canvas) {
     var style = this.parseStyle(this.font), 
         dim = {width: 0};
     
-    text = text || '';
-    
     if (moz) {
       this.mozTextStyle = this.buildStyle(style);
       dim.width = this.mozMeasureText(text);
@@ -484,8 +469,7 @@ function initCanvas(canvas) {
       var face = ctxt.getFaceFromStyle(style),
           scale = (style.size / face.resolution) * (3/4);
           
-      dim = this.getTextExtents(text, style);
-      dim.width *= scale * ctxt.scaling;
+      dim.width = this.getTextExtents(text, style).ha * scale * ctxt.scaling;
     }
     
     return dim;

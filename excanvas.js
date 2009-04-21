@@ -84,7 +84,7 @@ if (!document.createElement('canvas').getContext) {
   }
 
   function arrayContains(arr, item) {
-    var length = this.length;
+    var length = arr.length;
     for (var i = 0; i < length; i++) {
       if (arr[i] === item) return true;
     }
@@ -302,7 +302,7 @@ if (!document.createElement('canvas').getContext) {
       variant: ['small-caps']
     }
 
-    var parts = styleString.match(/([\w\%-_]+|"[^"]+"|'[^']+')*/g);
+    var parts = styleString.match(/("[^"]+"|'[^']+'|[\w\%-_]+)*/g);
     for (i = 0; parts && i < parts.length; i++) {
       part = parts[i].replace(/^["']*/, '').replace(/["']*$/, '');
       if (part) lex.push(part);
