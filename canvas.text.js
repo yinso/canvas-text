@@ -384,14 +384,14 @@ function initCanvas(canvas) {
     }
     
     switch (this.textBaseline) {
+      case 'alphabetic': break;
+      default:
+      case null:
+      case 'ideographic':
+      case 'bottom': offset.y = face.descender; break;
       case 'hanging': 
       case 'top': offset.y = face.ascender; break;
       case 'middle': offset.y = (face.ascender + face.descender) / 2; break;
-      default:
-      case null:
-      case 'alphabetic':
-      case 'ideographic': break;
-      case 'bottom': offset.y = face.descender; break;
     }
     offset.y *= scale;
     return offset;

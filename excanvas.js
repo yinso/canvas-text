@@ -15,7 +15,7 @@
 
 // Known Issues:
 //
-// * Patterns are not implemented.
+// * Patterns only support repeat.
 // * Radial gradient are not implemented. The VML version of these look very
 //   different from the canvas one.
 // * Clipping paths are not implemented.
@@ -47,6 +47,9 @@ if (!document.createElement('canvas').getContext) {
   // this is used for sub pixel precision
   var Z = 10;
   var Z2 = Z / 2;
+
+  // In IE8 standards mode we have to wrap the filter value in quotes.
+  var Q = document.documentMode >= 8 ? '"' : '';
 
   /**
    * This funtion is assigned to the <canvas> elements as element.getContext().
@@ -83,13 +86,34 @@ if (!document.createElement('canvas').getContext) {
     };
   }
 
-  function arrayContains(arr, item) {
-    var length = arr.length;
-    for (var i = 0; i < length; i++) {
-      if (arr[i] === item) return true;
-    }
-    return false;
+  function encodeHtmlAttribute(s) {
+    return String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;');
   }
+
+  function addNamespacesAndStylesheet(doc) {
+    // create xmlns
+    if (!doc.namespaces['g_vml_']) {
+      doc.namespaces.add('g_vml_', 'urn:schemas-microsoft-com:vml',
+                         '#default#VML');
+
+    }
+    if (!doc.namespaces['g_o_']) {
+      doc.namespaces.add('g_o_', 'urn:schemas-microsoft-com:office:office',
+                         '#default#VML');
+    }
+
+    // Setup default CSS.  Only add one style sheet per document
+    if (!doc.styleSheets['ex_canvas_']) {
+      var ss = doc.createStyleSheet();
+      ss.owningElement.id = 'ex_canvas_';
+      ss.cssText = 'canvas{display:inline-block;overflow:hidden;' +
+          // default size is 300x150 in Gecko and Opera
+          'text-align:left;width:300px;height:150px}';
+    }
+  }
+
+  // Add namespaces and stylesheet at startup.
+  addNamespacesAndStylesheet(document);
 
   var G_vmlCanvasManager_ = {
     init: function(opt_doc) {
@@ -103,26 +127,6 @@ if (!document.createElement('canvas').getContext) {
     },
 
     init_: function(doc) {
-      // create xmlns
-      if (!doc.namespaces['g_vml_']) {
-        doc.namespaces.add('g_vml_', 'urn:schemas-microsoft-com:vml',
-                           '#default#VML');
-
-      }
-      if (!doc.namespaces['g_o_']) {
-        doc.namespaces.add('g_o_', 'urn:schemas-microsoft-com:office:office',
-                           '#default#VML');
-      }
-
-      // Setup default CSS.  Only add one style sheet per document
-      if (!doc.styleSheets['ex_canvas_']) {
-        var ss = doc.createStyleSheet();
-        ss.owningElement.id = 'ex_canvas_';
-        ss.cssText = 'canvas{display:inline-block;overflow:hidden;' +
-            // default size is 300x150 in Gecko and Opera
-            'text-align:left;width:300px;height:150px}';
-      }
-
       // find all canvas elements
       var els = doc.getElementsByTagName('canvas');
       for (var i = 0; i < els.length; i++) {
@@ -141,6 +145,9 @@ if (!document.createElement('canvas').getContext) {
     initElement: function(el) {
       if (!el.getContext) {
         el.getContext = getContext;
+
+        // Add namespaces and stylesheet to document of the element.
+        addNamespacesAndStylesheet(el.ownerDocument);
 
         // Remove fallback content. There is no way to hide text nodes so we
         // just remove all childNodes. We could hide all elements and remove
@@ -169,10 +176,7 @@ if (!document.createElement('canvas').getContext) {
         //el.getContext().setCoordsize_()
       }
       return el;
-    },
-
-    // Internal text style cache
-    fontStyleCache_: {}
+    }
   };
 
   function onPropertyChange(e) {
@@ -277,51 +281,37 @@ if (!document.createElement('canvas').getContext) {
     return {color: str, alpha: alpha};
   }
 
-  function processFontStyle (styleString) {
-    styleString = styleString.replace(/^\s\s*/, '').replace(/\s\s*$/, '');
+  var DEFAULT_STYLE = {
+    style: 'normal',
+    variant: 'normal',
+    weight: 'normal',
+    size: 10,
+    family: 'sans-serif'
+  };
 
-    if (G_vmlCanvasManager_.fontStyleCache_[styleString]) {
-      return G_vmlCanvasManager_.fontStyleCache_[styleString];
+  // Internal text style cache
+  var fontStyleCache = {};
+
+  function processFontStyle(styleString) {
+    if (fontStyleCache[styleString]) {
+      return fontStyleCache[styleString];
     }
 
-    var lex = [], i, p, v, part;
+    var el = document.createElement('div');
+    var style = el.style;
+    try {
+      style.font = styleString;
+    } catch (ex) {
+      // Ignore failures to set to invalid font.
+    }
 
-    // Default style
-    var style = {
-      style: 'normal',
-      variant: 'normal',
-      weight: 'normal',
-      size: 10,
-      family: 'sans-serif'
+    return fontStyleCache[styleString] = {
+      style: style.fontStyle || DEFAULT_STYLE.style,
+      variant: style.fontVariant || DEFAULT_STYLE.variant,
+      weight: style.fontWeight || DEFAULT_STYLE.weight,
+      size: style.fontSize || DEFAULT_STYLE.size,
+      family: style.fontFamily || DEFAULT_STYLE.family
     };
-
-    var possibleValues = {
-      weight: ['bold', 'bolder', 'lighter', '100', '200', '300', '400', '500',
-               '600', '700', '800', '900'],
-      style: ['italic', 'oblique'],
-      variant: ['small-caps']
-    }
-
-    var parts = styleString.match(/("[^"]+"|'[^']+'|[\w\%-_]+)*/g);
-    for (i = 0; parts && i < parts.length; i++) {
-      part = parts[i].replace(/^["']*/, '').replace(/["']*$/, '');
-      if (part) lex.push(part);
-    }
-
-    style.family = lex.pop() || style.family;
-    style.size = lex.pop() || style.size;
-
-    for (p in possibleValues) {
-      v = possibleValues[p];
-      for (i = 0; v && i < v.length; i++) {
-        if (arrayContains(lex, v[i])) {
-          style[p] = v[i];
-          break;
-        }
-      }
-    }
-
-    return G_vmlCanvasManager_.fontStyleCache_[styleString] = style;
   }
 
   function getComputedStyle(style, element) {
@@ -338,7 +328,7 @@ if (!document.createElement('canvas').getContext) {
     if (typeof style.size == 'number') {
       computedStyle.size = style.size;
     } else if (style.size.indexOf('px') != -1) {
-      computedStyle.size = parseFloat(style.size);
+      computedStyle.size = fontSize;
     } else if (style.size.indexOf('em') != -1) {
       computedStyle.size = canvasFontSize * fontSize;
     } else if(style.size.indexOf('%') != -1) {
@@ -349,7 +339,8 @@ if (!document.createElement('canvas').getContext) {
       computedStyle.size = canvasFontSize;
     }
 
-    // Different scaling between normal text and VML text
+    // Different scaling between normal text and VML text. This was found using
+    // trial and error to get the same size as non VML text.
     computedStyle.size *= 0.981;
 
     return computedStyle;
@@ -357,7 +348,7 @@ if (!document.createElement('canvas').getContext) {
 
   function buildStyle(style) {
     return style.style + ' ' + style.variant + ' ' + style.weight + ' ' +
-        style.size + 'px \'' + style.family + '\'';
+        style.size + 'px ' + style.family;
   }
 
   function processLineCap(lineCap) {
@@ -419,20 +410,20 @@ if (!document.createElement('canvas').getContext) {
       this.textMeasureEl_ = null;
     }
     this.element_.innerHTML = '';
-  }
+  };
 
   contextPrototype.beginPath = function() {
     // TODO: Branch current matrix so that save/restore has no effect
     //       as per safari docs.
     this.currentPath_ = [];
-  }
+  };
 
   contextPrototype.moveTo = function(aX, aY) {
     var p = this.getCoords_(aX, aY);
     this.currentPath_.push({type: 'moveTo', x: p.x, y: p.y});
     this.currentX_ = p.x;
     this.currentY_ = p.y;
-  }
+  };
 
   contextPrototype.lineTo = function(aX, aY) {
     var p = this.getCoords_(aX, aY);
@@ -440,7 +431,7 @@ if (!document.createElement('canvas').getContext) {
 
     this.currentX_ = p.x;
     this.currentY_ = p.y;
-  }
+  };
 
   contextPrototype.bezierCurveTo = function(aCP1x, aCP1y,
                                             aCP2x, aCP2y,
@@ -449,7 +440,7 @@ if (!document.createElement('canvas').getContext) {
     var cp1 = this.getCoords_(aCP1x, aCP1y);
     var cp2 = this.getCoords_(aCP2x, aCP2y);
     bezierCurveTo(this, cp1, cp2, p);
-  }
+  };
 
   // Helper function that takes the already fixed cordinates.
   function bezierCurveTo(self, cp1, cp2, p) {
@@ -662,8 +653,9 @@ if (!document.createElement('canvas').getContext) {
       max.y = m.max(max.y, c2.y, c3.y, c4.y);
 
       vmlStr.push('padding:0 ', mr(max.x / Z), 'px ', mr(max.y / Z),
-                  'px 0;filter:progid:DXImageTransform.Microsoft.Matrix(',
-                  filter.join(''), ", sizingmethod='clip');")
+                  'px 0;filter:', Q,
+                  'progid:DXImageTransform.Microsoft.Matrix(',
+                  filter.join(''), ", sizingmethod='clip')", Q, ';')
     } else {
       vmlStr.push('top:', mr(d.y / Z), 'px;left:', mr(d.x / Z), 'px;');
     }
@@ -671,7 +663,7 @@ if (!document.createElement('canvas').getContext) {
     vmlStr.push(' ">' ,
                 '<g_vml_:image src="', image.src, '"',
                 ' style="width:', Z * dw, 'px;',
-                ' height:', Z * dh, 'px;"',
+                ' height:', Z * dh, 'px"',
                 ' cropleft="', sx / w, '"',
                 ' croptop="', sy / h, '"',
                 ' cropright="', (w - sx - sw) / w, '"',
@@ -679,15 +671,12 @@ if (!document.createElement('canvas').getContext) {
                 ' />',
                 '</g_vml_:group>');
 
-    this.element_.insertAdjacentHTML('beforeEnd', vmlStr.join(''));
+    this.element_.insertAdjacentHTML('BeforeEnd', vmlStr.join(''));
   };
 
   contextPrototype.stroke = function(aFill) {
     var lineStr = [];
     var lineOpen = false;
-    var a = processStyle(aFill ? this.fillStyle : this.strokeStyle);
-    var color = a.color;
-    var opacity = a.alpha * this.globalAlpha;
 
     var W = 10;
     var H = 10;
@@ -695,7 +684,8 @@ if (!document.createElement('canvas').getContext) {
     lineStr.push('<g_vml_:shape',
                  ' filled="', !!aFill, '"',
                  ' style="position:absolute;width:', W, 'px;height:', H, 'px;"',
-                 ' coordorigin="0 0" coordsize="', Z * W, ' ', Z * H, '"',
+                 ' coordorigin="0,0"',
+                 ' coordsize="', Z * W, ',', Z * H, '"',
                  ' stroked="', !aFill, '"',
                  ' path="');
 
@@ -761,25 +751,46 @@ if (!document.createElement('canvas').getContext) {
     lineStr.push(' ">');
 
     if (!aFill) {
-      var lineWidth = this.lineScale_ * this.lineWidth;
+      appendStroke(this, lineStr);
+    } else {
+      appendFill(this, lineStr, min, max);
+    }
 
-      // VML cannot correctly render a line if the width is less than 1px.
-      // In that case, we dilute the color to make the line look thinner.
-      if (lineWidth < 1) {
-        opacity *= lineWidth;
-      }
+    lineStr.push('</g_vml_:shape>');
 
-      lineStr.push(
-        '<g_vml_:stroke',
-        ' opacity="', opacity, '"',
-        ' joinstyle="', this.lineJoin, '"',
-        ' miterlimit="', this.miterLimit, '"',
-        ' endcap="', processLineCap(this.lineCap), '"',
-        ' weight="', lineWidth, 'px"',
-        ' color="', color, '" />'
-      );
-    } else if (this.fillStyle instanceof CanvasGradient_) {
-      var fillStyle = this.fillStyle;
+    this.element_.insertAdjacentHTML('beforeEnd', lineStr.join(''));
+  };
+
+  function appendStroke(ctx, lineStr) {
+    var a = processStyle(ctx.strokeStyle);
+    var color = a.color;
+    var opacity = a.alpha * ctx.globalAlpha;
+    var lineWidth = ctx.lineScale_ * ctx.lineWidth;
+
+    // VML cannot correctly render a line if the width is less than 1px.
+    // In that case, we dilute the color to make the line look thinner.
+    if (lineWidth < 1) {
+      opacity *= lineWidth;
+    }
+
+    lineStr.push(
+      '<g_vml_:stroke',
+      ' opacity="', opacity, '"',
+      ' joinstyle="', ctx.lineJoin, '"',
+      ' miterlimit="', ctx.miterLimit, '"',
+      ' endcap="', processLineCap(ctx.lineCap), '"',
+      ' weight="', lineWidth, 'px"',
+      ' color="', color, '" />'
+    );
+  }
+
+  function appendFill(ctx, lineStr, min, max) {
+    var fillStyle = ctx.fillStyle;
+    var arcScaleX = ctx.arcScaleX_;
+    var arcScaleY = ctx.arcScaleY_;
+    var width = max.x - min.x;
+    var height = max.y - min.y;
+    if (fillStyle instanceof CanvasGradient_) {
       var angle = 0;
       var focus = {x: 0, y: 0};
 
@@ -789,12 +800,12 @@ if (!document.createElement('canvas').getContext) {
       var expansion = 1;
 
       if (fillStyle.type_ == 'gradient') {
-        var x0 = fillStyle.x0_ / this.arcScaleX_;
-        var y0 = fillStyle.y0_ / this.arcScaleY_;
-        var x1 = fillStyle.x1_ / this.arcScaleX_;
-        var y1 = fillStyle.y1_ / this.arcScaleY_;
-        var p0 = this.getCoords_(x0, y0);
-        var p1 = this.getCoords_(x1, y1);
+        var x0 = fillStyle.x0_ / arcScaleX;
+        var y0 = fillStyle.y0_ / arcScaleY;
+        var x1 = fillStyle.x1_ / arcScaleX;
+        var y1 = fillStyle.y1_ / arcScaleY;
+        var p0 = ctx.getCoords_(x0, y0);
+        var p1 = ctx.getCoords_(x1, y1);
         var dx = p1.x - p0.x;
         var dy = p1.y - p0.y;
         angle = Math.atan2(dx, dy) * 180 / Math.PI;
@@ -810,16 +821,14 @@ if (!document.createElement('canvas').getContext) {
           angle = 0;
         }
       } else {
-        var p0 = this.getCoords_(fillStyle.x0_, fillStyle.y0_);
-        var width  = max.x - min.x;
-        var height = max.y - min.y;
+        var p0 = ctx.getCoords_(fillStyle.x0_, fillStyle.y0_);
         focus = {
           x: (p0.x - min.x) / width,
           y: (p0.y - min.y) / height
         };
 
-        width  /= this.arcScaleX_ * Z;
-        height /= this.arcScaleY_ * Z;
+        width  /= arcScaleX * Z;
+        height /= arcScaleY * Z;
         var dimension = m.max(width, height);
         shift = 2 * fillStyle.r0_ / dimension;
         expansion = 2 * fillStyle.r1_ / dimension - shift;
@@ -835,8 +844,8 @@ if (!document.createElement('canvas').getContext) {
       var length = stops.length;
       var color1 = stops[0].color;
       var color2 = stops[length - 1].color;
-      var opacity1 = stops[0].alpha * this.globalAlpha;
-      var opacity2 = stops[length - 1].alpha * this.globalAlpha;
+      var opacity1 = stops[0].alpha * ctx.globalAlpha;
+      var opacity2 = stops[length - 1].alpha * ctx.globalAlpha;
 
       var colors = [];
       for (var i = 0; i < length; i++) {
@@ -855,30 +864,27 @@ if (!document.createElement('canvas').getContext) {
                    ' g_o_:opacity2="', opacity1, '"',
                    ' angle="', angle, '"',
                    ' focusposition="', focus.x, ',', focus.y, '" />');
-    } else if (this.fillStyle instanceof CanvasPattern_) {
-      var ws = max.x - min.x;
-      var hs = max.y - min.y;
-      if (ws && hs) {
+    } else if (fillStyle instanceof CanvasPattern_) {
+      if (width && height) {
         var deltaLeft = -min.x;
         var deltaTop = -min.y;
         lineStr.push('<g_vml_:fill',
                      ' position="',
-                     deltaLeft / ws * this.arcScaleX_ * this.arcScaleX_, ',',
-                     deltaTop / hs * this.arcScaleY_ * this.arcScaleY_, '"',
+                     deltaLeft / width * arcScaleX * arcScaleX, ',',
+                     deltaTop / height * arcScaleY * arcScaleY, '"',
                      ' type="tile"',
                      // TODO: Figure out the correct size to fit the scale.
                      //' size="', w, 'px ', h, 'px"',
-                     ' src="', this.fillStyle.src_, '" />');
+                     ' src="', fillStyle.src_, '" />');
        }
     } else {
+      var a = processStyle(ctx.fillStyle);
+      var color = a.color;
+      var opacity = a.alpha * ctx.globalAlpha;
       lineStr.push('<g_vml_:fill color="', color, '" opacity="', opacity,
                    '" />');
     }
-
-    lineStr.push('</g_vml_:shape>');
-
-    this.element_.insertAdjacentHTML('beforeEnd', lineStr.join(''));
-  };
+  }
 
   contextPrototype.fill = function() {
     this.stroke(true);
@@ -908,8 +914,10 @@ if (!document.createElement('canvas').getContext) {
   };
 
   contextPrototype.restore = function() {
-    copyState(this.aStack_.pop(), this);
-    this.m_ = this.mStack_.pop();
+    if (this.aStack_.length) {
+      copyState(this.aStack_.pop(), this);
+      this.m_ = this.mStack_.pop();
+    }
   };
 
   function matrixIsFinite(m) {
@@ -990,36 +998,39 @@ if (!document.createElement('canvas').getContext) {
   };
 
   /**
-   * The text deawing function.
+   * The text drawing function.
    * The maxWidth argument isn't taken in account, since no browser supports
    * it yet.
    */
   contextPrototype.drawText_ = function(text, x, y, maxWidth, stroke) {
-    var a = processStyle(stroke ? this.strokeStyle : this.fillStyle),
-        color = a.color,
-        opacity = a.alpha * this.globalAlpha,
-        lineWidth = this.lineScale_ * this.lineWidth,
-        
-        m = this.m_,
-        delta = 100,
+    var m = this.m_,
+        delta = 1000,
         left = 0,
         right = delta,
         offset = {x: 0, y: 0},
         lineStr = [];
-        
-    if (lineWidth < 1) opacity *= lineWidth;
 
     var fontStyle = getComputedStyle(processFontStyle(this.font),
                                      this.element_);
-                                     
+
     var fontStyleString = buildStyle(fontStyle);
 
-    var elementStyle = this.element_.currentStyle,
-        textAlign = this.textAlign.match(/^(left|center|right)$/i) ?
-            this.textAlign :
-            (this.textAlign == 'end' && elementStyle.direction == 'ltr' ||
-             this.textAlign == 'start' && elementStyle.direction == 'rtl' ?
-                'right' : 'left');
+    var elementStyle = this.element_.currentStyle;
+    var textAlign = this.textAlign.toLowerCase();
+    switch (textAlign) {
+      case 'left':
+      case 'center':
+      case 'right':
+        break;
+      case 'end':
+        textAlign = elementStyle.direction == 'ltr' ? 'right' : 'left';
+        break;
+      case 'start':
+        textAlign = elementStyle.direction == 'rtl' ? 'right' : 'left';
+        break;
+      default:
+        textAlign = 'left';
+    }
 
     // 1.75 is an arbitrary number, as there is no info about the text baseline
     switch (this.textBaseline) {
@@ -1034,14 +1045,14 @@ if (!document.createElement('canvas').getContext) {
       case 'alphabetic':
       case 'ideographic':
       case 'bottom':
-        offset.y = -fontStyle.size / 1.75;
+        offset.y = -fontStyle.size / 2.25;
         break;
     }
 
     switch(textAlign) {
       case 'right':
         left = delta;
-        right = 0;
+        right = 0.05;
         break;
       case 'center':
         left = right = delta / 2;
@@ -1050,37 +1061,32 @@ if (!document.createElement('canvas').getContext) {
 
     var d = this.getCoords_(x + offset.x, y + offset.y);
 
-    lineStr.push('<g_vml_:line from="', -left ,' 0" to="', right ,' 0.1" ',
+    lineStr.push('<g_vml_:line from="', -left ,' 0" to="', right ,' 0.05" ',
                  ' coordsize="100 100" coordorigin="0 0"',
                  ' filled="', !stroke, '" stroked="', !!stroke,
                  '" style="position:absolute;width:1px;height:1px;">');
 
     if (stroke) {
-      lineStr.push('<g_vml_:stroke on="true"',
-                   ' opacity="', opacity, '"',
-                   ' joinstyle="', this.lineJoin, '"',
-                   ' miterlimit="', this.miterLimit, '"',
-                   ' endcap="', processLineCap(this.lineCap), '"',
-                   ' weight="', lineWidth, 'px"',
-                   ' color="', color, '" />');
+      appendStroke(this, lineStr);
     } else {
-      lineStr.push('<g_vml_:fill on="true" opacity="', opacity,
-                   '" color="', color, '" />');
+      // TODO(arv): are these boundaries correct?
+      appendFill(this, lineStr, {x: -left, y: 0}, {x: right, y: fontStyle.size});
     }
 
-    var skewM = m[0][0].toFixed(3)+','+m[1][0].toFixed(3)+','+
-                m[0][1].toFixed(3)+','+m[1][1].toFixed(3)+',0,0';
-                
-    var skewOffset = mr(d.x / Z)+','+mr(d.y / Z);
-    
-    lineStr.push('<g_vml_:skew on="t" matrix="', skewM ,'" ', 
+    var skewM = m[0][0].toFixed(5) + ',' + m[1][0].toFixed(5) + ',' +
+                m[0][1].toFixed(5) + ',' + m[1][1].toFixed(5) + ',0,0';
+
+    var skewOffset = mr(d.x / Z) + ',' + mr(d.y / Z);
+
+    lineStr.push('<g_vml_:skew on="t" matrix="', skewM ,'" ',
                  ' offset="', skewOffset, '" origin="', left ,' 0" />',
                  '<g_vml_:path textpathok="true" />',
-                 '<g_vml_:textpath on="true" string="', text,
-                 '" style="v-text-align:', textAlign, ';font:', 
-                 fontStyleString ,'" />',
-                 '</g_vml_:line>');
-                 
+                 '<g_vml_:textpath on="true" string="',
+                 encodeHtmlAttribute(text),
+                 '" style="v-text-align:', textAlign,
+                 ';font:', encodeHtmlAttribute(fontStyleString),
+                 '" /></g_vml_:line>');
+
     this.element_.insertAdjacentHTML('beforeEnd', lineStr.join(''));
   };
 
@@ -1094,15 +1100,15 @@ if (!document.createElement('canvas').getContext) {
 
   contextPrototype.measureText = function(text) {
     if (!this.textMeasureEl_) {
-      // We should also parse the font style
       var s = '<span style="position:absolute;' +
           'top:-20000px;left:0;padding:0;margin:0;border:none;' +
-          'white-space:pre;font:' + this.font + '"></span>';
+          'white-space:pre;"></span>';
       this.element_.insertAdjacentHTML('beforeEnd', s);
       this.textMeasureEl_ = this.element_.lastChild;
     }
     var doc = this.element_.ownerDocument;
     this.textMeasureEl_.innerHTML = '';
+    this.textMeasureEl_.style.font = this.font;
     // Don't use innerHTML or innerText because they allow markup/whitespace.
     this.textMeasureEl_.appendChild(doc.createTextNode(text));
     return {width: this.textMeasureEl_.offsetWidth};
@@ -1179,7 +1185,6 @@ if (!document.createElement('canvas').getContext) {
     this.code = this[s];
     this.message = s +': DOM Exception ' + this.code;
   }
-
   var p = DOMException_.prototype = new Error;
   p.INDEX_SIZE_ERR = 1;
   p.DOMSTRING_SIZE_ERR = 2;
