@@ -48,9 +48,6 @@ if (!document.createElement('canvas').getContext) {
   var Z = 10;
   var Z2 = Z / 2;
 
-  // In IE8 standards mode we have to wrap the filter value in quotes.
-  var Q = document.documentMode >= 8 ? '"' : '';
-
   /**
    * This funtion is assigned to the <canvas> elements as element.getContext().
    * @this {HTMLElement}
@@ -184,12 +181,15 @@ if (!document.createElement('canvas').getContext) {
 
     switch (e.propertyName) {
       case 'width':
-        el.style.width = el.attributes.width.nodeValue + 'px';
         el.getContext().clearRect();
+        el.style.width = el.attributes.width.nodeValue + 'px';
+        // In IE8 this does not trigger onresize.
+        el.firstChild.style.width =  el.clientWidth + 'px';
         break;
       case 'height':
-        el.style.height = el.attributes.height.nodeValue + 'px';
         el.getContext().clearRect();
+        el.style.height = el.attributes.height.nodeValue + 'px';
+        el.firstChild.style.height = el.clientHeight + 'px';
         break;
     }
   }
@@ -653,9 +653,9 @@ if (!document.createElement('canvas').getContext) {
       max.y = m.max(max.y, c2.y, c3.y, c4.y);
 
       vmlStr.push('padding:0 ', mr(max.x / Z), 'px ', mr(max.y / Z),
-                  'px 0;filter:', Q,
-                  'progid:DXImageTransform.Microsoft.Matrix(',
-                  filter.join(''), ", sizingmethod='clip')", Q, ';')
+                  'px 0;filter:progid:DXImageTransform.Microsoft.Matrix(',
+                  filter.join(''), ", sizingmethod='clip');");
+
     } else {
       vmlStr.push('top:', mr(d.y / Z), 'px;left:', mr(d.x / Z), 'px;');
     }
@@ -791,6 +791,7 @@ if (!document.createElement('canvas').getContext) {
     var width = max.x - min.x;
     var height = max.y - min.y;
     if (fillStyle instanceof CanvasGradient_) {
+      // TODO: Gradients transformed with the transformation matrix.
       var angle = 0;
       var focus = {x: 0, y: 0};
 
@@ -1069,12 +1070,13 @@ if (!document.createElement('canvas').getContext) {
     if (stroke) {
       appendStroke(this, lineStr);
     } else {
-      // TODO(arv): are these boundaries correct?
-      appendFill(this, lineStr, {x: -left, y: 0}, {x: right, y: fontStyle.size});
+      // TODO: Fix the min and max params.
+      appendFill(this, lineStr, {x: -left, y: 0},
+                 {x: right, y: fontStyle.size});
     }
 
-    var skewM = m[0][0].toFixed(5) + ',' + m[1][0].toFixed(5) + ',' +
-                m[0][1].toFixed(5) + ',' + m[1][1].toFixed(5) + ',0,0';
+    var skewM = m[0][0].toFixed(3) + ',' + m[1][0].toFixed(3) + ',' +
+                m[0][1].toFixed(3) + ',' + m[1][1].toFixed(3) + ',0,0';
 
     var skewOffset = mr(d.x / Z) + ',' + mr(d.y / Z);
 
