@@ -86,7 +86,7 @@ function initCanvas(canvas) {
 
     for (i = 0; i < scripts.length; i++) {
       src = scripts[i].src;
-      if (src.indexOf(libFileName) > 0) {
+      if (src.indexOf(libFileName) != -1) {
         parts = src.split('?');
         ctxt.basePath = parts[0].replace(libFileName, '');
         if (parts[1]) {
