@@ -1,7 +1,7 @@
 /* $Id$ */
 
 /** 
- * @projectDescription An implementation of the <canvas> text functions in browsers that don't already have it
+ * @projectDescription An cross-browser implementation of the HTML5 <canvas> text methods
  * @author Fabien Ménager
  * @version $Revision$
  * @license MIT License <http://www.opensource.org/licenses/mit-license.php>
@@ -10,17 +10,8 @@
 /**
  * Known issues:
  * - The 'light' font weight is not supported, neither is the 'oblique' font style.
- * - Optimize the different hacks (for Safari3 and Opera9)
+ * - Optimize the different hacks (for Opera9)
  */
-
-/** Array.indexOf */
-if (!Array.prototype.indexOf) Array.prototype.indexOf = function(item, i) {
-  i || (i = 0);
-  var length = this.length;
-  if (i < 0) i = length + i;
-  for (; i < length; i++) if (this[i] === item) return i;
-  return -1;
-};
 
 window.Canvas = window.Canvas || {};
 window.Canvas.Text = {
@@ -67,7 +58,6 @@ function initCanvas(canvas) {
 /** The implementation of the text functions */
 (function(){
   var isOpera9 = (window.opera && navigator.userAgent.match(/Opera\/9/)), // It seems to be faster when the hacked methods are used. But there are artifacts with Opera 10.
-      isSafari3 = !window.CanvasRenderingContext2D,
       proto = window.CanvasRenderingContext2D ? window.CanvasRenderingContext2D.prototype : document.createElement('canvas').getContext('2d').__proto__,
       ctxt = window.Canvas.Text;
 
@@ -81,13 +71,12 @@ function initCanvas(canvas) {
   
   function initialize(){
     var libFileName = 'canvas.text.js',
-        head = document.getElementsByTagName("head")[0],
-        scripts = head.getElementsByTagName("script"), i, j, src, parts;
+        scripts = document.getElementsByTagName("script"), i, j;
 
     for (i = 0; i < scripts.length; i++) {
-      src = scripts[i].src;
+      var src = scripts[i].src;
       if (src.indexOf(libFileName) != -1) {
-        parts = src.split('?');
+        var parts = src.split('?');
         ctxt.basePath = parts[0].replace(libFileName, '');
         if (parts[1]) {
           var options = parts[1].split('&');
@@ -99,7 +88,7 @@ function initCanvas(canvas) {
         break;
       }
     }
-  };
+  }
   initialize();
   
   // What is the browser's implementation ?
@@ -108,8 +97,7 @@ function initCanvas(canvas) {
   // If the text functions are already here : nothing to do !
   if (proto.strokeText && !ctxt.options.reimplement) {
     // This property is needed, when including the font face files
-    window._typeface_js = {loadFace: function(){}};
-    return;
+    return window._typeface_js = {loadFace: function(){}};
   }
   
   function getCSSWeightEquivalent(weight) {
@@ -126,7 +114,7 @@ function initCanvas(canvas) {
       case 'normal': return 'normal';
       //default: return 'light';
     }
-  };
+  }
   
   function getElementStyle(e) {
     if (e.computedStyle) return e.computedStyle;
@@ -135,7 +123,7 @@ function initCanvas(canvas) {
     else if (e.currentStyle)
       e.computedStyle = e.currentStyle;
     return e.computedStyle;
-  };
+  }
   
   function getXHR() {
     var methods = [
@@ -153,7 +141,13 @@ function initCanvas(canvas) {
       }
     }
     return ctxt.xhr;
-  };
+  }
+
+  function arrayContains(a, v){
+    var i, l = a.length;
+    for (i = l-1; i >= 0; --i) if (a[i] === v) return true;
+    return false;
+  }
 
   ctxt.getFace = function(family, weight, style) {
     if (this.faces[family] && 
@@ -182,6 +176,7 @@ function initCanvas(canvas) {
     this.faces[family][data.cssFontWeight][data.cssFontStyle] = data;
     return data;
   };
+	
   // To use the typeface.js face files
   window._typeface_js = {faces: ctxt.faces, loadFace: ctxt.loadFace};
   
@@ -194,7 +189,7 @@ function initCanvas(canvas) {
   
   // Default values
   // Firefox 3.5 throws an error when redefining these properties
-  try { 
+  try {
     proto.font = "10px sans-serif";
     proto.textAlign = "start";
     proto.textBaseline = "alphabetic";
@@ -232,7 +227,7 @@ function initCanvas(canvas) {
     for (p in possibleValues) {
       v = possibleValues[p];
       for (i = 0; i < v.length; i++) {
-        if (lex.indexOf(v[i]) != -1) {
+        if (arrayContains(lex, v[i])) {
           style[p] = v[i];
           break;
         }
@@ -249,14 +244,15 @@ function initCanvas(canvas) {
   proto.renderText = function(text, style) {
     var face = ctxt.getFaceFromStyle(style),
         scale = (style.size / face.resolution) * (3/4),
-        offset = 0;
+        offset = 0, i, 
+				chars = text.split(''), 
+				length = chars.length;
     
     if (!isOpera9) {
       this.scale(scale, -scale);
       this.lineWidth /= scale;
     }
     
-    var i, chars = text.split(''), length = chars.length;
     for (i = 0; i < length; i++) {
       offset += this.renderGlyph(chars[i], face, scale, offset);
     }
@@ -343,23 +339,23 @@ function initCanvas(canvas) {
   
   proto.getComputedStyle = function(style) {
     var p, canvasStyle = getElementStyle(this.canvas), 
-        computedStyle = {};
+        computedStyle = {},
+				s = style.size,
+        canvasFontSize = parseFloat(canvasStyle.fontSize),
+        fontSize = parseFloat(s);
     
     for (p in style) {
       computedStyle[p] = style[p];
     }
     
     // Compute the size
-    var canvasFontSize = parseFloat(canvasStyle.fontSize),
-        fontSize = parseFloat(style.size);
-
-    if (typeof style.size == 'number' || style.size.indexOf('px') != -1) 
+    if (typeof s == 'number' || s.indexOf('px') != -1) 
       computedStyle.size = fontSize;
-    else if (style.size.indexOf('em') != -1)
+    else if (s.indexOf('em') != -1)
       computedStyle.size = canvasFontSize * fontSize;
-    else if(style.size.indexOf('%') != -1)
+    else if(s.indexOf('%') != -1)
       computedStyle.size = (canvasFontSize / 100) * fontSize;
-    else if (style.size.indexOf('pt') != -1)
+    else if (s.indexOf('pt') != -1)
       computedStyle.size = canvasFontSize * (4/3) * fontSize;
     else
       computedStyle.size = canvasFontSize;
