@@ -26,3 +26,8 @@ canvas {
   border: 2px dashed #999;
   display: block;
 }
+
+.footer {
+  display: block;
+  margin-top: 1em;
+}

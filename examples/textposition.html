@@ -37,6 +37,13 @@
 		<canvas width="500" height="330" id="test-canvas"></canvas>
 		
 		<script type="text/javascript">
+      function initCanvas(canvas) {
+        if (window.G_vmlCanvasManager && window.attachEvent && !window.opera) {
+          canvas = window.G_vmlCanvasManager.initElement(canvas);
+        }
+        return canvas;
+      }
+      
 			window.onload = function(){
 		  	var canvas = initCanvas(document.getElementById("test-canvas")),
 				    ctx = canvas.getContext('2d');
@@ -47,7 +54,7 @@
             
 		  	ctx.fillStyle = "#000";
         ctx.strokeStyle = "#f00";
-        ctx.font = "20px 'arial'";
+        ctx.font = "20px verdana,'times new roman',arial";
 		  	ctx.translate(70, 30);
         
         for (i = 0; i < align.length; i++) {
@@ -75,6 +82,6 @@
 			}
 		</script>
     
-    <a href="index.html">Back to the index</a>
+    <a href="index.html" class="footer">Back to the index</a>
 	</body>
 </html>

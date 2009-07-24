@@ -41,6 +41,13 @@
 		</div>
 		
 		<script type="text/javascript">
+      function initCanvas(canvas) {
+        if (window.G_vmlCanvasManager && window.attachEvent && !window.opera) {
+          canvas = window.G_vmlCanvasManager.initElement(canvas);
+        }
+        return canvas;
+      }
+      
 			window.onload = function(){
 		  	var canvas = initCanvas(document.getElementById("test-canvas")),
 				    ctx = canvas.getContext('2d');
@@ -79,6 +86,6 @@
 			}
 		</script>
     
-    <a href="index.html">Back to the index</a>
+    <a href="index.html" class="footer">Back to the index</a>
 	</body>
 </html>

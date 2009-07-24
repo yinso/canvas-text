@@ -44,17 +44,6 @@ window.Canvas.Text = {
   _styleCache: {}
 };
 
-/** Initializes a canvas element for Internet Explorer if 
- * ExCanvas is present and old-webkit based browsers
- * @param {Element} canvas The canvas to initialize
- */
-function initCanvas(canvas) {
-  if (window.G_vmlCanvasManager && window.attachEvent && !window.opera) {
-    canvas = window.G_vmlCanvasManager.initElement(canvas);
-  }
-  return canvas;
-}
-
 /** The implementation of the text functions */
 (function(){
   var isOpera9 = (window.opera && navigator.userAgent.match(/Opera\/9/)), // It seems to be faster when the hacked methods are used. But there are artifacts with Opera 10.
@@ -66,7 +55,8 @@ function initCanvas(canvas) {
     fallbackCharacter: ' ', // The character that will be drawn when not present in the font face file
     dontUseMoz: false, // Don't use the builtin Firefox 3.0 functions (mozDrawText, mozPathText and mozMeasureText)
     reimplement: false, // Don't use the builtin official functions present in Chrome 2, Safari 4, and Firefox 3.1+
-    debug: false // Debug mode, not used yet
+    debug: false, // Debug mode, not used yet
+    autoload: false
   };
   
   function initialize(){
@@ -126,12 +116,12 @@ function initCanvas(canvas) {
   }
   
   function getXHR() {
-    var methods = [
-      function() {return new XMLHttpRequest()},
-      function() {return new ActiveXObject('Msxml2.XMLHTTP')},
-      function() {return new ActiveXObject('Microsoft.XMLHTTP')}
-    ];
     if (!ctxt.xhr) {
+      var methods = [
+        function(){return new XMLHttpRequest()},
+        function(){return new ActiveXObject('Msxml2.XMLHTTP')},
+        function(){return new ActiveXObject('Microsoft.XMLHTTP')}
+      ];
       for (i = 0; i < methods.length; i++) {
         try {
           ctxt.xhr = methods[i](); 
@@ -153,7 +143,9 @@ function initCanvas(canvas) {
     if (this.faces[family] && 
         this.faces[family][weight] && 
         this.faces[family][weight][style]) return this.faces[family][weight][style];
-        
+    
+    if (!this.options.autoload) return false;
+    
     var faceName = (family.replace(/[ -]/g, '_')+'-'+weight+'-'+style),
         xhr = this.xhr,
         url = this.basePath+'faces/'+faceName+'.js';
