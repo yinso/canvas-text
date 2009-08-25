@@ -17,28 +17,23 @@ window.Canvas = window.Canvas || {};
 window.Canvas.Text = {
   // http://mondaybynoon.com/2007/04/02/linux-font-equivalents-to-popular-web-typefaces/
   equivalentFaces: {
-    'Arial': ['Utkal', 'Nimbus Sans L', 'FreeSans', 'Malayalam', 'Phetsarath OT'],
-    'Charcoal': ['Rehka', 'Aakar', 'FreeSerif', 'Gentium'],
-    'Comic Sans MS': ['TSCu_Comic'],
-    'Courier New': ['FreeMono', 'Nimbus Mono L'],
-    'Georgia': ['Nimbus Roman No9 L', 'Century Schoolbook L', 'Norasi', 'Rekha'],
-    'Helvetica': ['FreeSans', 'Gargi_1.7', 'Jamrul', 'Malayalam', 'Mukti Narrow', 'Nimbus Sans L', 'Phetsarath OT'],
-    'Lucida Grande': ['Gargi_1.7', 'Garuda', 'Jamrul', 'Loma', 'Malayalam', 'Mukti Narrow'],
-    'Tahoma': ['Kalimati'],
-    'Times New Roman': ['FreeSerif'],
-    'Verdana': ['Kalimati']
+    // Web popular fonts
+    'arial': ['liberation sans', 'nimbus sans l', 'freesans'],
+    'times new roman': ['liberation serif', 'linux libertine', 'freeserif'],
+    'courier new': ['dejavu sans mono', 'liberation mono', 'nimbus mono l', 'freemono'],
+    'georgia': ['nimbus roman no9 l'],
+    'helvetica': ['nimbus sans l', 'freesans'],
+    'tahoma': ['dejavu sans', 'bitstream vera sans'],
+    'verdana': ['dejavu sans', 'bitstream vera sans']
   },
-
-  // http://www.w3.org/TR/CSS21/fonts.html#generic-font-families
   genericFaces: {
-    'serif': ['Times New Roman', 'Bodoni', 'Garamond', 'Minion Web', 'ITC Stone Serif', 'Georgia', 'Bitstream Cyberbit'],
-    'sans-serif': ['Trebuchet', 'Verdana', 'Arial', 'Tahoma', 'Helvetica', 'ITC Avant Garde Gothic', 'Univers', 'Futura', 
-                   'Gill Sans', 'Akzidenz Grotesk', 'Attika', 'Typiko New Era', 'ITC Stone Sans', 'Monotype Gill Sans 571'],
-    'monospace': ['Courier', 'Courier New', 'Prestige', 'Everson Mono'],
-    'cursive': ['Caflisch Script', 'Adobe Poetica', 'Sanvito', 'Ex Ponto', 'Snell Roundhand', 'Zapf-Chancery'],
-    'fantasy': ['Alpha Geometrique', 'Critter', 'Cottonwood', 'FB Reactor', 'Studz']
+    'serif': ['times new roman', 'georgia', 'garamond', 'bodoni', 'minion web', 'itc stone serif', 'bitstream cyberbit'],
+    'sans-serif': ['arial', 'verdana', 'trebuchet', 'tahoma', 'helvetica', 'itc avant garde gothic', 'univers', 'futura', 
+                   'gill sans', 'akzidenz grotesk', 'attika', 'typiko new era', 'itc stone sans', 'monotype gill sans 571'],
+    'monospace': ['courier', 'courier new', 'prestige', 'everson mono'],
+    'cursive': ['caflisch script', 'adobe poetica', 'sanvito', 'ex ponto', 'snell roundhand', 'zapf-chancery'],
+    'fantasy': ['alpha geometrique', 'critter', 'cottonwood', 'fb reactor', 'studz']
   },
-  
   faces: {},
   scaling: 0.962,
   _styleCache: {}
@@ -56,7 +51,7 @@ window.Canvas.Text = {
     dontUseMoz: false, // Don't use the builtin Firefox 3.0 functions (mozDrawText, mozPathText and mozMeasureText)
     reimplement: false, // Don't use the builtin official functions present in Chrome 2, Safari 4, and Firefox 3.1+
     debug: false, // Debug mode, not used yet
-    autoload: false
+    autoload: 'faces'
   };
   
   function initialize(){
@@ -90,7 +85,7 @@ window.Canvas.Text = {
     return window._typeface_js = {loadFace: function(){}};
   }
   
-  function getCSSWeightEquivalent(weight) {
+  function getCSSWeightEquivalent(weight){
     switch(weight) {
       case 'bolder':
       case 'bold':
@@ -106,16 +101,17 @@ window.Canvas.Text = {
     }
   }
   
-  function getElementStyle(e) {
-    if (e.computedStyle) return e.computedStyle;
-    if (window.getComputedStyle)
-      e.computedStyle = window.getComputedStyle(e, '');
-    else if (e.currentStyle)
-      e.computedStyle = e.currentStyle;
-    return e.computedStyle;
+  function getElementStyle(e){
+    if (document.defaultView && document.defaultView.getComputedStyle) {
+      return document.defaultView.getComputedStyle(e, null);
+    } else if (e.currentStyle) {
+      return e.currentStyle;
+    } else {
+      return e.style;
+    }
   }
   
-  function getXHR() {
+  function getXHR(){
     if (!ctxt.xhr) {
       var methods = [
         function(){return new XMLHttpRequest()},
@@ -138,17 +134,40 @@ window.Canvas.Text = {
     for (i = l-1; i >= 0; --i) if (a[i] === v) return true;
     return false;
   }
+  
+  ctxt.lookupFamily = function(family){
+    var faces = this.faces, face, i, f, list,
+        equiv = this.equivalentFaces,
+        generic = this.genericFaces;
+        
+    if (faces[family]) return faces[family];
+    
+    if (generic[family]) {
+      for (i = 0; i < generic[family].length; i++) {
+        if (f = this.lookupFamily(generic[family][i])) return f;
+      }
+    }
+    
+    if (!(list = equiv[family])) return false;
 
-  ctxt.getFace = function(family, weight, style) {
-    if (this.faces[family] && 
-        this.faces[family][weight] && 
-        this.faces[family][weight][style]) return this.faces[family][weight][style];
+    for (i = 0; i < list.length; i++)
+      if (face = faces[list[i]]) return face;
+    return false;
+  }
+
+  ctxt.getFace = function(family, weight, style){
+    var face = this.lookupFamily(family);
+    if (!face) return false;
+    
+    if (face && 
+        face[weight] && 
+        face[weight][style]) return face[weight][style];
     
     if (!this.options.autoload) return false;
     
     var faceName = (family.replace(/[ -]/g, '_')+'-'+weight+'-'+style),
         xhr = this.xhr,
-        url = this.basePath+'faces/'+faceName+'.js';
+        url = this.basePath+this.options.autoload+'/'+faceName+'.js';
 
     xhr = getXHR();
     xhr.open("get", url, false);
@@ -161,7 +180,7 @@ window.Canvas.Text = {
     return false;
   };
   
-  ctxt.loadFace = function(data) {
+  ctxt.loadFace = function(data){
     var family = data.familyName.toLowerCase();
     this.faces[family] = this.faces[family] || {};
     this.faces[family][data.cssFontWeight] = this.faces[family][data.cssFontWeight] || {};
@@ -172,11 +191,16 @@ window.Canvas.Text = {
   // To use the typeface.js face files
   window._typeface_js = {faces: ctxt.faces, loadFace: ctxt.loadFace};
   
-  ctxt.getFaceFromStyle = function(style) {
+  ctxt.getFaceFromStyle = function(style){
     var weight = getCSSWeightEquivalent(style.weight),
-        family = style.family.toLowerCase();
+        families = style.family, i, face;
         
-    return this.getFace(family, weight, style.style);
+    for (i = 0; i < families.length; i++) {
+      if (face = this.getFace(families[i].toLowerCase(), weight, style.style)) {
+        return face;
+      }
+    }
+    return false;
   };
   
   // Default values
@@ -188,52 +212,39 @@ window.Canvas.Text = {
   }
   catch(e){}
   
-  proto.parseStyle = function(styleText) {
-    styleText = styleText.replace(/^\s\s*/, '').replace(/\s\s*$/, ''); // trim
-    
+  proto.parseStyle = function(styleText){
     if (ctxt._styleCache[styleText]) return this.getComputedStyle(ctxt._styleCache[styleText]);
     
-    var parts, lex = [], i, p, v, part,
+    var style = {}, computedStyle, families;
+    
+    if (!this._elt) {
+      this._elt = document.createElement('span');
+      this.canvas.appendChild(this._elt);
+    }
+    
     // Default style
-    style = {
-      family: 'sans-serif',
-      size: 10,
-      weight: 'normal',
-      style: 'normal'
-    },
+    this.canvas.font = '10px sans-serif';
+    this._elt.style.font = styleText;
     
-    possibleValues = {
-      weight: ['bold', 'bolder', 'lighter', '100', '200', '300', '400', '500', '600', '700', '800', '900'],
-      style: ['italic', 'oblique']
-    };
+    computedStyle = getElementStyle(this._elt);
+    style.size = computedStyle.fontSize;
+    style.weight = computedStyle.fontWeight;
+    style.style = computedStyle.fontStyle;
     
-    parts = styleText.match(/("[^"]+"|'[^']+'|[\w\%-_]+)*/g);
-    for(i = 0; i < parts.length; i++) {
-      part = parts[i].replace(/^["']*/, '').replace(/["']*$/, '');
-      if (part) lex.push(part);
+    families = computedStyle.fontFamily.split(',');
+    for(i = 0; i < families.length; i++) {
+      families[i] = families[i].replace(/^["'\s]*/, '').replace(/["'\s]*$/, '');
     }
-    
-    style.family = lex.pop() || style.family;
-    style.size = lex.pop() || style.size;
-    
-    for (p in possibleValues) {
-      v = possibleValues[p];
-      for (i = 0; i < v.length; i++) {
-        if (arrayContains(lex, v[i])) {
-          style[p] = v[i];
-          break;
-        }
-      }
-    }
+    style.family = families;
     
     return this.getComputedStyle(ctxt._styleCache[styleText] = style);
   };
   
-  proto.buildStyle = function (style) {
+  proto.buildStyle = function (style){
     return style.style+' '+style.weight+' '+style.size+'px "'+style.family+'"';
   };
 
-  proto.renderText = function(text, style) {
+  proto.renderText = function(text, style){
     var face = ctxt.getFaceFromStyle(style),
         scale = (style.size / face.resolution) * (3/4),
         offset = 0, i, 
@@ -251,7 +262,7 @@ window.Canvas.Text = {
   };
 
   if (isOpera9) {
-    proto.renderGlyph = function(c, face, scale, offset) {
+    proto.renderGlyph = function(c, face, scale, offset){
       var i, cpx, cpy, outline, action, glyph = face.glyphs[c], length;
       
       if (!glyph) return;
@@ -281,7 +292,7 @@ window.Canvas.Text = {
     };
   }
   else {
-    proto.renderGlyph = function(c, face) {
+    proto.renderGlyph = function(c, face){
       var i, cpx, cpy, outline, action, glyph = face.glyphs[c], length;
       
       if (!glyph) return;
@@ -329,7 +340,7 @@ window.Canvas.Text = {
     };
   };
   
-  proto.getComputedStyle = function(style) {
+  proto.getComputedStyle = function(style){
     var p, canvasStyle = getElementStyle(this.canvas), 
         computedStyle = {},
 				s = style.size,
@@ -345,7 +356,7 @@ window.Canvas.Text = {
       computedStyle.size = fontSize;
     else if (s.indexOf('em') != -1)
       computedStyle.size = canvasFontSize * fontSize;
-    else if(s.indexOf('%') != -1)
+    else if (s.indexOf('%') != -1)
       computedStyle.size = (canvasFontSize / 100) * fontSize;
     else if (s.indexOf('pt') != -1)
       computedStyle.size = canvasFontSize * (4/3) * fontSize;
@@ -355,7 +366,7 @@ window.Canvas.Text = {
     return computedStyle;
   };
   
-  proto.getTextOffset = function(text, style, face) {
+  proto.getTextOffset = function(text, style, face){
     var canvasStyle = getElementStyle(this.canvas),
         metrics = this.measureText(text), 
         scale = (style.size / face.resolution) * (3/4),
