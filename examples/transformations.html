@@ -6,9 +6,9 @@
 		<link rel="stylesheet" type="text/css" href="style.css" />
     
 		<!--[if IE]><script type="text/javascript" src="../excanvas.js"></script><![endif]-->
-    <script type="text/javascript" src="../canvas.text.js?reimplement=true"></script>
+    <script type="text/javascript" src="../canvas.text.js"></script>
     <script type="text/javascript" src="../faces/dejavu_sans-normal-normal.js"></script>
-    <script type="text/javascript" src="../faces/dejavu_sans-bold-italic.js"></script>
+    <script type="text/javascript" src="../faces/dejavu_sans-bold-normal.js"></script>
 	</head>
 	<body>
 	  <h1>Canvas text transformations example</h1>
@@ -29,7 +29,7 @@
 		  	ctx.strokeStyle = "rgba(255,0,0,1)";
 		  	ctx.fillStyle = "rgba(0,0,0,1)";
 		  	ctx.lineWidth = 1;
-		  	ctx.font = "2em Verdana";
+		  	ctx.font = "20pt Verdana, sans-serif";
 				
         ctx.translate(60, 60);
         
@@ -53,12 +53,12 @@
         ctx.translate(350, -250);
         
         ctx.save();
-        ctx.font = "2em 'DejaVu Sans',Verdana";
+        ctx.font = "bold 2em Verdana, sans-serif";
         ctx.strokeStyle = "#000";
         ctx.fillStyle = "rgba(50,255,0,1)";
         ctx.rotate(Math.PI/2);
         ctx.fillText('Vertical', 0, 0);
-        ctx.strokeText('Vertical and stroke', 0, 0);
+        ctx.strokeText('Vertical Stroke', 0, 0);
         ctx.restore();
 			}
 		</script>

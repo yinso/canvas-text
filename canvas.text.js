@@ -51,7 +51,7 @@ window.Canvas.Text = {
     dontUseMoz: false, // Don't use the builtin Firefox 3.0 functions (mozDrawText, mozPathText and mozMeasureText)
     reimplement: false, // Don't use the builtin official functions present in Chrome 2, Safari 4, and Firefox 3.1+
     debug: false, // Debug mode, not used yet
-    autoload: 'faces'
+    autoload: false // Specify the directory containing the face files or false
   };
   
   function initialize(){
@@ -86,7 +86,7 @@ window.Canvas.Text = {
   }
   
   function getCSSWeightEquivalent(weight){
-    switch(weight) {
+    switch(String(weight)) {
       case 'bolder':
       case 'bold':
       case '900':
@@ -104,11 +104,8 @@ window.Canvas.Text = {
   function getElementStyle(e){
     if (document.defaultView && document.defaultView.getComputedStyle) {
       return document.defaultView.getComputedStyle(e, null);
-    } else if (e.currentStyle) {
-      return e.currentStyle;
-    } else {
-      return e.style;
     }
+    return e.currentStyle || e.style;
   }
   
   function getXHR(){
@@ -187,7 +184,7 @@ window.Canvas.Text = {
     this.faces[family][data.cssFontWeight][data.cssFontStyle] = data;
     return data;
   };
-	
+
   // To use the typeface.js face files
   window._typeface_js = {faces: ctxt.faces, loadFace: ctxt.loadFace};
   
@@ -228,7 +225,7 @@ window.Canvas.Text = {
     
     computedStyle = getElementStyle(this._elt);
     style.size = computedStyle.fontSize;
-    style.weight = computedStyle.fontWeight;
+    style.weight = getCSSWeightEquivalent(computedStyle.fontWeight);
     style.style = computedStyle.fontStyle;
     
     families = computedStyle.fontFamily.split(',');
@@ -236,7 +233,6 @@ window.Canvas.Text = {
       families[i] = families[i].replace(/^["'\s]*/, '').replace(/["'\s]*$/, '');
     }
     style.family = families;
-    
     return this.getComputedStyle(ctxt._styleCache[styleText] = style);
   };
   
@@ -246,10 +242,10 @@ window.Canvas.Text = {
 
   proto.renderText = function(text, style){
     var face = ctxt.getFaceFromStyle(style),
-        scale = (style.size / face.resolution) * (3/4),
+        scale = (style.size / face.resolution) * 0.75,
         offset = 0, i, 
-				chars = text.split(''), 
-				length = chars.length;
+        chars = text.split(''), 
+        length = chars.length;
     
     if (!isOpera9) {
       this.scale(scale, -scale);
@@ -325,9 +321,9 @@ window.Canvas.Text = {
   proto.getTextExtents = function(text, style){
     var width = 0, height = 0, ha = 0, 
         face = ctxt.getFaceFromStyle(style),
-        i, glyph;
+        i, length = text.length, glyph;
     
-    for (i = 0; i < text.length; i++) {
+    for (i = 0; i < length; i++) {
       glyph = face.glyphs[text.charAt(i)] || face.glyphs[ctxt.options.fallbackCharacter];
       width += Math.max(glyph.ha, glyph.x_max);
       ha += glyph.ha;
@@ -343,7 +339,7 @@ window.Canvas.Text = {
   proto.getComputedStyle = function(style){
     var p, canvasStyle = getElementStyle(this.canvas), 
         computedStyle = {},
-				s = style.size,
+        s = style.size,
         canvasFontSize = parseFloat(canvasStyle.fontSize),
         fontSize = parseFloat(s);
     
@@ -352,14 +348,14 @@ window.Canvas.Text = {
     }
     
     // Compute the size
-    if (typeof s == 'number' || s.indexOf('px') != -1) 
+    if (typeof s === 'number' || s.indexOf('px') != -1) 
       computedStyle.size = fontSize;
     else if (s.indexOf('em') != -1)
       computedStyle.size = canvasFontSize * fontSize;
     else if (s.indexOf('%') != -1)
       computedStyle.size = (canvasFontSize / 100) * fontSize;
     else if (s.indexOf('pt') != -1)
-      computedStyle.size = canvasFontSize * (4/3) * fontSize;
+      computedStyle.size = fontSize / 0.75;
     else
       computedStyle.size = canvasFontSize;
     
@@ -369,7 +365,7 @@ window.Canvas.Text = {
   proto.getTextOffset = function(text, style, face){
     var canvasStyle = getElementStyle(this.canvas),
         metrics = this.measureText(text), 
-        scale = (style.size / face.resolution) * (3/4),
+        scale = (style.size / face.resolution) * 0.75,
         offset = {x: 0, y: 0, metrics: metrics, scale: scale};
 
     switch (this.textAlign) {
@@ -400,7 +396,7 @@ window.Canvas.Text = {
     var style = this.parseStyle(this.font),
         face = ctxt.getFaceFromStyle(style),
         offset = this.getTextOffset(text, style, face);
-    
+        
     this.save();
     this.translate(x + offset.x, y + offset.y);
     if (face.strokeFont && !stroke) {
@@ -466,7 +462,7 @@ window.Canvas.Text = {
     }
     else {
       var face = ctxt.getFaceFromStyle(style),
-          scale = (style.size / face.resolution) * (3/4);
+          scale = (style.size / face.resolution) * 0.75;
           
       dim.width = this.getTextExtents(text, style).ha * scale * ctxt.scaling;
     }
