@@ -1,7 +1,7 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
 <html>
 	<head>
-		<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1" />
+		<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
 		<title>Canvas text performance example</title>
     
     <!--[if IE]><script type="text/javascript" src="../excanvas.js"></script><![endif]-->
@@ -28,7 +28,7 @@
             ctx = canvas.getContext('2d');
         
         ctx.textBaseline = 'top';
-        ctx.font = "0.8em Optimer";
+        ctx.font = "0.8em Optimer, verdana";
         
         var start = 0, step = 80, n = 0, str;
         while(start < dummyText.length) {

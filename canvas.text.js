@@ -2,7 +2,7 @@
 
 /** 
  * @projectDescription An cross-browser implementation of the HTML5 <canvas> text methods
- * @author Fabien Ménager
+ * @author Fabien Mï¿½nager
  * @version $Revision$
  * @license MIT License <http://www.opensource.org/licenses/mit-license.php>
  */
@@ -18,13 +18,13 @@ window.Canvas.Text = {
   // http://mondaybynoon.com/2007/04/02/linux-font-equivalents-to-popular-web-typefaces/
   equivalentFaces: {
     // Web popular fonts
-    'arial': ['liberation sans', 'nimbus sans l', 'freesans'],
-    'times new roman': ['liberation serif', 'linux libertine', 'freeserif'],
+    'arial': ['liberation sans', 'nimbus sans l', 'freesans', 'optimer', 'dejavu sans'],
+    'times new roman': ['liberation serif', 'helvetiker', 'linux libertine', 'freeserif'],
     'courier new': ['dejavu sans mono', 'liberation mono', 'nimbus mono l', 'freemono'],
-    'georgia': ['nimbus roman no9 l'],
-    'helvetica': ['nimbus sans l', 'freesans'],
-    'tahoma': ['dejavu sans', 'bitstream vera sans'],
-    'verdana': ['dejavu sans', 'bitstream vera sans']
+    'georgia': ['nimbus roman no9 l', 'helvetiker'],
+    'helvetica': ['nimbus sans l', 'helvetiker', 'freesans'],
+    'tahoma': ['dejavu sans', 'optimer', 'bitstream vera sans'],
+    'verdana': ['dejavu sans', 'optimer', 'bitstream vera sans']
   },
   genericFaces: {
     'serif': ['times new roman', 'georgia', 'garamond', 'bodoni', 'minion web', 'itc stone serif', 'bitstream cyberbit'],
@@ -259,8 +259,9 @@ window.Canvas.Text = {
 
   if (isOpera9) {
     proto.renderGlyph = function(c, face, scale, offset){
-      var i, cpx, cpy, outline, action, glyph = face.glyphs[c], length;
-      
+      var i, cpx, cpy, outline, action, length,
+          glyph = face.glyphs[c] || face.glyphs[ctxt.options.fallbackCharacter];
+
       if (!glyph) return;
   
       if (glyph.o) {
@@ -281,6 +282,11 @@ window.Canvas.Text = {
               cpy = outline[i++]*-scale;
               this.quadraticCurveTo(outline[i++]*scale+offset, outline[i++]*-scale, cpx, cpy);
               break;
+            case 'b':
+              cpx = outline[i++]*scale+offset;
+              cpy = outline[i++]*-scale;
+              ctx.bezierCurveTo(outline[i++]*scale+offset, outline[i++]*-scale, outline[i++]*scale+offset, outline[i++]*-scale, cpx, cpy);
+              break;
           }
         }
       }
@@ -289,7 +295,8 @@ window.Canvas.Text = {
   }
   else {
     proto.renderGlyph = function(c, face){
-      var i, cpx, cpy, outline, action, glyph = face.glyphs[c], length;
+      var i, cpx, cpy, outline, action, length,
+          glyph = face.glyphs[c] || face.glyphs[ctxt.options.fallbackCharacter];
       
       if (!glyph) return;
 
@@ -310,6 +317,11 @@ window.Canvas.Text = {
               cpx = outline[i++];
               cpy = outline[i++];
               this.quadraticCurveTo(outline[i++], outline[i++], cpx, cpy);
+              break;
+            case 'b':
+              cpx = outline[i++];
+              cpy = outline[i++];
+              ctx.bezierCurveTo(outline[i++], outline[i++], outline[i++], outline[i++], cpx, cpy);
               break;
           }
         }
