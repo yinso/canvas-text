@@ -1,0 +1,47 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+		<title>Canvas text position example</title>
+    <link rel="stylesheet" type="text/css" href="style.css" />
+    
+    <!--[if IE]><script type="text/javascript" src="../excanvas.js"></script><![endif]-->
+    <script type="text/javascript" src="../canvas.text.js?reimplement=true"></script>
+    <script type="text/javascript" src="../faces/sans_serif-normal-normal.js"></script>
+	</head>
+	<body>
+    <h1>Canvas text stroke font example</h1>
+    The actual render needs to be improved by updating the character shapes<br />
+		<canvas width="1000" height="660" id="test-canvas"></canvas>
+		
+		<script type="text/javascript">
+      function initCanvas(canvas) {
+        if (window.G_vmlCanvasManager && window.attachEvent && !window.opera) {
+          canvas = window.G_vmlCanvasManager.initElement(canvas);
+        }
+        return canvas;
+      }
+      
+			window.onload = function(){
+		  	var canvas = initCanvas(document.getElementById("test-canvas")),
+				    ctx = canvas.getContext('2d'),
+						text = "abcdefghijklmnopqrstuvwxyz",
+						sizes = [8, 10, 12, 16, 20, 24, 32, 40, 48, 54, 60];
+						
+			  for (var i = 0; i < sizes.length; i++) {
+	        ctx.font = "normal "+sizes[i]+"px sans-serif";
+	        ctx.fillText(text, 10, 10);
+					ctx.translate(0, sizes[i]+2);
+				}
+				
+        for (var i = 0; i < sizes.length; i++) {
+          ctx.font = "bold "+sizes[i]+"px sans-serif";
+          ctx.fillText(text, 10, 10);
+          ctx.translate(0, sizes[i]+2);
+        }
+			}
+		</script>
+    
+    <a href="index.html" class="footer">Back to the index</a>
+	</body>
+</html>

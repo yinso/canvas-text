@@ -19,7 +19,8 @@
         return canvas;
       }
       
-			if (document.createElement("canvas").getContext("2d").fillText) {
+			var c = document.createElement("canvas");
+			if (c.getContext && c.getContext("2d").fillText) {
 		  	window.onload = function(){
 		  		var time = new Date(), canvas = initCanvas(document.getElementById("test-canvas")), ctx = canvas.getContext('2d');
 		  		

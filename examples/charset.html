@@ -1,0 +1,44 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+		<title>Charset example</title>
+    
+    <!--[if IE]><script type="text/javascript" src="../excanvas.js"></script><![endif]-->
+    <script type="text/javascript" src="../canvas.text.js?reimplement=true&dontUseMoz=true"></script>
+    <script type="text/javascript" src="../faces/dejavu_sans-normal-normal.js"></script>
+	</head>
+	<body>
+		<canvas width="700" height="500" id="test-canvas"></canvas>
+		
+		<script type="text/javascript">
+		  var charSample = "";
+			
+			for (var i = 0x020; i < 0x4FF; i++) {
+				charSample += String.fromCharCode(i);
+			}
+			
+      function initCanvas(canvas) {
+        if (window.G_vmlCanvasManager && window.attachEvent && !window.opera) {
+          canvas = window.G_vmlCanvasManager.initElement(canvas);
+        }
+        return canvas;
+      }
+      
+      window.onload = function(){
+        var canvas = initCanvas(document.getElementById("test-canvas")),
+            ctx = canvas.getContext('2d');
+        
+        ctx.textBaseline = 'top';
+        ctx.font = "11px sans-serif";
+        
+        var start = 0, step = 80, n = 0, str;
+        while(start < charSample.length) {
+          str = charSample.substr(start, step);
+          start += step;
+          ctx.fillText(str, 0, 12*n++);
+        }
+      }
+		</script>
+	</body>
+</html>

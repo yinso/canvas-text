@@ -41,7 +41,7 @@ window.Canvas.Text = {
 
 /** The implementation of the text functions */
 (function(){
-  var isOpera9 = (window.opera && navigator.userAgent.match(/Opera\/9/)), // It seems to be faster when the hacked methods are used. But there are artifacts with Opera 10.
+  var isOpera9 = (window.opera && /Opera\/9/.test(navigator.userAgent)), // It seems to be faster when the hacked methods are used. But there are artifacts with Opera 10.
       proto = window.CanvasRenderingContext2D ? window.CanvasRenderingContext2D.prototype : document.createElement('canvas').getContext('2d').__proto__,
       ctxt = window.Canvas.Text;
 
@@ -54,33 +54,24 @@ window.Canvas.Text = {
     autoload: false // Specify the directory containing the face files or false
   };
   
-  function initialize(){
-    var libFileName = 'canvas.text.js',
-        scripts = document.getElementsByTagName("script"), i, j;
-
-    for (i = 0; i < scripts.length; i++) {
-      var src = scripts[i].src;
-      if (src.indexOf(libFileName) != -1) {
-        var parts = src.split('?');
-        ctxt.basePath = parts[0].replace(libFileName, '');
-        if (parts[1]) {
-          var options = parts[1].split('&');
-          for (j = options.length-1; j >= 0; --j) {
-            var pair = options[j].split('=');
-            ctxt.options[pair[0]] = pair[1];
-          }
-        }
-        break;
-      }
+  var scripts = document.getElementsByTagName("script"),
+      parts = scripts[scripts.length-1].src.split('?');
+  
+  ctxt.basePath = parts[0].substr(0, parts[0].lastIndexOf("/")+1);
+  
+  if (parts[1]) {
+    var options = parts[1].split('&');
+    for (var j = options.length-1; j >= 0; --j) {
+      var pair = options[j].split('=');
+      ctxt.options[pair[0]] = pair[1];
     }
   }
-  initialize();
   
   // What is the browser's implementation ?
-  var moz = !ctxt.options.dontUseMoz && proto.mozDrawText && !proto.strokeText;
+  var moz = !ctxt.options.dontUseMoz && proto.mozDrawText && !proto.fillText;
 
-  // If the text functions are already here : nothing to do !
-  if (proto.strokeText && !ctxt.options.reimplement) {
+  // If the text functions are already here or if on the iPhone (fillText exists) : nothing to do !
+  if (proto.fillText && !ctxt.options.reimplement && !/iphone/i.test(navigator.userAgent)) {
     // This property is needed, when including the font face files
     return window._typeface_js = {loadFace: function(){}};
   }
@@ -179,9 +170,22 @@ window.Canvas.Text = {
   
   ctxt.loadFace = function(data){
     var family = data.familyName.toLowerCase();
+
     this.faces[family] = this.faces[family] || {};
-    this.faces[family][data.cssFontWeight] = this.faces[family][data.cssFontWeight] || {};
-    this.faces[family][data.cssFontWeight][data.cssFontStyle] = data;
+    
+    if (data.strokeFont) {
+      this.faces[family].normal = this.faces[family].normal || {};
+      this.faces[family].normal.normal = data;
+      this.faces[family].normal.italic = data;
+      
+      this.faces[family].bold = this.faces[family].normal || {};
+      this.faces[family].bold.normal = data;
+      this.faces[family].bold.italic = data;
+    }
+    else {
+      this.faces[family][data.cssFontWeight] = this.faces[family][data.cssFontWeight] || {};
+      this.faces[family][data.cssFontWeight][data.cssFontStyle] = data;
+    }
     return data;
   };
 
@@ -414,6 +418,7 @@ window.Canvas.Text = {
     if (face.strokeFont && !stroke) {
       this.strokeStyle = this.fillStyle;
     }
+    this.lineCap = "round";
     this.beginPath();
 
     if (moz) {
@@ -424,7 +429,7 @@ window.Canvas.Text = {
       this.scale(ctxt.scaling, ctxt.scaling);
       this.renderText(text, style);
       if (face.strokeFont) {
-        this.lineWidth = style.size * (style.weight == 'bold' ? 0.5 : 0.3);
+        this.lineWidth = 2 + style.size * (style.weight == 'bold' ? 0.07 : 0.02) / 2;
       }
     }
 
