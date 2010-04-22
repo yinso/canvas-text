@@ -106,7 +106,7 @@ window.Canvas.Text = {
         function(){return new ActiveXObject('Msxml2.XMLHTTP')},
         function(){return new ActiveXObject('Microsoft.XMLHTTP')}
       ];
-      for (i = 0; i < methods.length; i++) {
+      for (var i = 0; i < methods.length; i++) {
         try {
           ctxt.xhr = methods[i](); 
           break;
@@ -197,7 +197,8 @@ window.Canvas.Text = {
         families = style.family, i, face;
         
     for (i = 0; i < families.length; i++) {
-      if (face = this.getFace(families[i].toLowerCase(), weight, style.style)) {
+      // The iPhone adds "-webkit-" at the beginning
+      if (face = this.getFace(families[i].toLowerCase().replace(/^-webkit-/, ""), weight, style.style)) {
         return face;
       }
     }
@@ -429,7 +430,7 @@ window.Canvas.Text = {
       this.scale(ctxt.scaling, ctxt.scaling);
       this.renderText(text, style);
       if (face.strokeFont) {
-        this.lineWidth = 2 + style.size * (style.weight == 'bold' ? 0.07 : 0.02) / 2;
+        this.lineWidth = 2 + style.size * (style.weight == 'bold' ? 0.08 : 0.015) / 2;
       }
     }
 
