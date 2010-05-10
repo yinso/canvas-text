@@ -249,7 +249,7 @@ window.Canvas.Text = {
     var face = ctxt.getFaceFromStyle(style),
         scale = (style.size / face.resolution) * 0.75,
         offset = 0, i, 
-        chars = text.split(''), 
+        chars = String(text).split(''), 
         length = chars.length;
     
     if (!isOpera9) {
