@@ -290,7 +290,7 @@ window.Canvas.Text = {
             case 'b':
               cpx = outline[i++]*scale+offset;
               cpy = outline[i++]*-scale;
-              ctx.bezierCurveTo(outline[i++]*scale+offset, outline[i++]*-scale, outline[i++]*scale+offset, outline[i++]*-scale, cpx, cpy);
+              this.bezierCurveTo(outline[i++]*scale+offset, outline[i++]*-scale, outline[i++]*scale+offset, outline[i++]*-scale, cpx, cpy);
               break;
           }
         }
@@ -326,7 +326,7 @@ window.Canvas.Text = {
             case 'b':
               cpx = outline[i++];
               cpy = outline[i++];
-              ctx.bezierCurveTo(outline[i++], outline[i++], outline[i++], outline[i++], cpx, cpy);
+              this.bezierCurveTo(outline[i++], outline[i++], outline[i++], outline[i++], cpx, cpy);
               break;
           }
         }
